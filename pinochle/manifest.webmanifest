@@ -1,0 +1,17 @@
+{
+  "name": "Pinochle Seniors: Big Cards",
+  "short_name": "Pinochle",
+  "description": "Pinochle with big readable cards, every meld counted and explained, and an honest random deal. No mid-game ads. Plays offline.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#4a161e",
+  "theme_color": "#31090d",
+  "categories": ["games", "card"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

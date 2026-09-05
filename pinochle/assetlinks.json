@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.djspuzzlepalace.pinochle",
+      "sha256_cert_fingerprints": [
+        "15:BE:0B:D4:15:3B:EA:09:46:F8:E5:41:D5:0A:AF:AD:B4:42:30:8E:50:C3:08:A2:96:F0:9E:B8:55:4D:20:B1",
+        "76:E6:16:C2:41:6E:A4:98:53:38:B5:17:F8:54:7C:A4:8A:ED:38:D4:63:1A:01:E8:A3:33:DA:C7:B3:59:D6:6B"
+      ]
+    }
+  }
+]
