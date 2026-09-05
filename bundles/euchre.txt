@@ -1,0 +1,958 @@
+===== FILE: euchre/sw.js =====
+/* Euchre for Seniors - Big Cards — service worker */
+var CACHE = 'euchre-v1-4';
+var ASSETS = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './icon-192.png',
+  './icon-512.png',
+  './icon-maskable-512.png',
+  './favicon.png',
+  './icon-apple-180.png'
+];
+
+self.addEventListener('install', function(e){
+  self.skipWaiting();
+  e.waitUntil(caches.open(CACHE).then(function(c){ return c.addAll(ASSETS); }).catch(function(){}));
+});
+
+self.addEventListener('activate', function(e){
+  e.waitUntil(
+    caches.keys().then(function(keys){
+      return Promise.all(keys.map(function(k){ if(k!==CACHE) return caches.delete(k); }));
+    }).then(function(){ return self.clients.claim(); })
+  );
+});
+
+self.addEventListener('fetch', function(e){
+  if(e.request.method !== 'GET') return;
+  e.respondWith(
+    caches.match(e.request).then(function(hit){
+      if(hit) return hit;
+      return fetch(e.request).then(function(res){
+        var copy = res.clone();
+        caches.open(CACHE).then(function(c){ c.put(e.request, copy); }).catch(function(){});
+        return res;
+      }).catch(function(){
+        return caches.match('./index.html');
+      });
+    })
+  );
+});
+
+===== FILE: euchre/index.html =====
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b5c2e">
+<title>Euchre for Seniors - Big Cards</title>
+<meta name="description" content="Euchre for Seniors — big readable cards, easy play, a fair deal, no ads mid-game. Play offline vs the computer.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.png" sizes="any">
+<link rel="apple-touch-icon" href="icon-apple-180.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Euchre">
+<style>
+  :root{
+    --felt1:#0f7a3d; --felt2:#0b5c2e;
+    --ink:#12303f; --gold:#f4c542; --cream:#f7f3e8;
+    --red:#c62828; --blk:#1b2733;
+    --panel:rgba(6,30,18,.82);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;
+    font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:radial-gradient(ellipse at 50% 38%,var(--felt1),var(--felt2));
+    color:var(--cream);-webkit-user-select:none;user-select:none;touch-action:manipulation;}
+  #app{position:relative;width:100%;height:100%;}
+
+  /* top bar */
+  #bar{position:absolute;top:0;left:0;right:0;z-index:6;display:flex;align-items:center;gap:10px;
+    padding:10px 14px;background:linear-gradient(180deg,rgba(4,20,12,.92),rgba(4,20,12,0));
+    font-size:18px;font-weight:700;letter-spacing:.3px;pointer-events:none;flex-wrap:wrap;}
+  #bar .brand{color:var(--gold);font-weight:900;}
+  .score{background:var(--panel);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:6px 13px;font-size:18px;
+    display:inline-flex;align-items:center;gap:8px;}
+  .score .lab{font-size:15px;opacity:.9;}
+  .score b{font-size:29px;}
+  .us b{color:#8fe0ff;} .them b{color:#ffb0a0;}
+  .tpips{display:inline-flex;gap:4px;align-items:center;margin-left:3px;}
+  .tpips i{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.4);background:transparent;display:inline-block;}
+  .us .tpips i.on{background:#8fe0ff;border-color:#8fe0ff;box-shadow:0 0 7px rgba(143,224,255,.7);}
+  .them .tpips i.on{background:#ffb0a0;border-color:#ffb0a0;box-shadow:0 0 7px rgba(255,176,160,.7);}
+  .tlabel{font-size:13px;letter-spacing:.5px;opacity:.65;font-weight:700;}
+  #trumpChip{background:var(--panel);border:1px solid var(--gold);border-radius:10px;padding:7px 14px;color:var(--gold);}
+  #trumpChip .sym{font-size:24px;vertical-align:-3px;}
+  /* narrow phones: keep the enlarged score bar to two tidy rows */
+  @media (max-width:620px){
+    #bar .tlabel{display:none;}
+    #bar .brand{font-size:15px;}
+    #bar{gap:7px;padding:9px 12px;}
+  }
+
+  /* seats */
+  .seat{position:absolute;z-index:3;text-align:center;pointer-events:none;}
+  .seat .name{font-size:14px;font-weight:800;letter-spacing:.5px;background:var(--panel);
+    border:1px solid rgba(255,255,255,.14);border-radius:20px;padding:4px 14px;display:inline-block;}
+  .seat.active .name{border-color:var(--gold);color:var(--gold);box-shadow:0 0 16px rgba(244,197,66,.5);}
+  .seat .dealerdot{display:none;margin-left:6px;color:var(--gold);font-size:12px;}
+  .seat.dealer .dealerdot{display:inline;}
+  #seatN{top:104px;left:50%;transform:translateX(-50%);}
+  #seatW{top:44%;left:12px;transform:translateY(-50%);}
+  #seatE{top:44%;right:12px;transform:translateY(-50%);}
+  #seatS{bottom:252px;left:50%;transform:translateX(-50%);}
+  .callbadge{display:none;margin-top:6px;font-size:12px;font-weight:800;color:#06120a;background:var(--gold);
+    border-radius:12px;padding:2px 10px;}
+  .seat.caller .callbadge{display:inline-block;}
+
+  /* opponent hand backs */
+  .backs{display:flex;gap:4px;justify-content:center;margin-top:8px;}
+  .backs.vert{flex-direction:column;align-items:center;}
+  .cardback{background:linear-gradient(135deg,#1d5fa8,#123f72);border:1.5px solid #cdd9e6;border-radius:6px;}
+  .backs .cardback{width:46px;height:66px;}
+  .backs.vert .cardback{width:66px;height:46px;}
+
+  /* center: trick area */
+  #trick{position:absolute;top:49%;left:50%;transform:translate(-50%,-50%);z-index:4;
+    width:380px;height:380px;pointer-events:none;}
+  #trick .played{position:absolute;transition:left .5s cubic-bezier(.4,0,.2,1),top .5s cubic-bezier(.4,0,.2,1),opacity .5s ease,transform .5s ease;}
+
+  /* card face */
+  .card{width:96px;height:138px;border-radius:9px;background:var(--cream);
+    box-shadow:0 3px 9px rgba(0,0,0,.38);position:relative;display:inline-block;
+    border:1px solid #d8d0bd;}
+  .card .corner{position:absolute;font-weight:900;line-height:.92;}
+  .card .tl{top:6px;left:8px;text-align:left;}
+  .card .br{bottom:6px;right:8px;text-align:left;transform:rotate(180deg);}
+  .card .rank{font-size:28px;}
+  .card .suit{font-size:25px;}
+  .card .pip{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:50px;}
+  .card.red{color:var(--red);} .card.blk{color:var(--blk);}
+
+  /* player hand — cards sized & fanned by JS (renderHand) */
+  #hand{position:absolute;bottom:16px;left:0;right:0;z-index:5;
+    display:flex;justify-content:center;align-items:flex-end;padding:0 6px;min-height:210px;}
+  #hand .card{cursor:pointer;transition:transform .14s ease;pointer-events:auto;position:relative;}
+  #hand .card.playable{box-shadow:0 0 0 4px var(--gold),0 8px 18px rgba(0,0,0,.45);}
+  #hand .card.playable{transform:translateY(-16px);}
+  #hand .card.playable:active{transform:translateY(-30px) scale(1.04);}
+  #hand .card.dim{opacity:.5;filter:saturate(.55);}
+
+  /* prompt panel (bidding / dialogs) */
+  #prompt{position:absolute;left:50%;bottom:262px;transform:translateX(-50%);z-index:8;
+    background:var(--panel);border:1px solid var(--gold);border-radius:16px;padding:14px 16px;
+    min-width:280px;max-width:92vw;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.5);display:none;}
+  #prompt .q{font-size:16px;font-weight:700;margin-bottom:12px;line-height:1.35;}
+  #prompt .q .up{color:var(--gold);}
+  #prompt .btns{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;}
+  .btn{cursor:pointer;border:none;border-radius:11px;font-size:16px;font-weight:800;letter-spacing:.4px;
+    padding:12px 18px;color:#06160c;background:linear-gradient(180deg,#7fe3a0,#39b869);pointer-events:auto;}
+  .btn:active{transform:scale(.96);}
+  .btn.ghost{background:rgba(255,255,255,.1);color:var(--cream);border:1px solid rgba(255,255,255,.25);}
+  .btn.suit{min-width:66px;font-size:22px;}
+  .btn.suit.red{color:var(--red);background:var(--cream);}
+  .btn.suit.blk{color:var(--blk);background:var(--cream);}
+  .btn.gold{background:linear-gradient(180deg,#f7d675,#e0a92c);color:#241800;}
+  #alone{margin-top:10px;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--cream);}
+  #alone input{width:20px;height:20px;}
+
+  /* toast / message */
+  #toast{position:absolute;top:96px;left:50%;transform:translateX(-50%);z-index:9;
+    background:var(--panel);border:1px solid rgba(255,255,255,.22);border-radius:12px;
+    padding:9px 18px;font-size:15px;font-weight:700;max-width:88vw;text-align:center;
+    opacity:0;transition:opacity .3s;pointer-events:none;}
+
+  /* upcard slot */
+  #upcard{position:absolute;top:38%;left:50%;transform:translate(-50%,-50%);z-index:4;display:none;}
+  #upcard .lab{font-size:11px;text-align:center;color:var(--gold);font-weight:800;margin-bottom:3px;letter-spacing:.5px;}
+
+  /* overlay */
+  #overlay{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at 50% 40%,rgba(10,60,30,.96),rgba(3,16,9,.98));text-align:center;padding:22px;overflow-y:auto;}
+  #overlay .kick{font-size:12px;letter-spacing:3px;color:var(--gold);font-weight:800;margin-bottom:8px;}
+  #overlay h1{font-size:clamp(30px,7vw,52px);margin:0;font-weight:900;color:#fff;letter-spacing:1px;}
+  #overlay h1 .s{color:var(--gold);}
+  #overlay .sub{font-size:clamp(13px,2.6vw,16px);color:#bfe6cd;margin:8px 0 20px;font-weight:600;}
+  #overlay .how{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;
+    padding:14px 20px;margin-bottom:22px;text-align:left;max-width:560px;}
+  #overlay .how div{margin:7px 0;font-size:clamp(13px,2.5vw,15px);color:#d9efe0;}
+  #overlay .how b{color:var(--gold);}
+  #overlay .foot{margin-top:18px;font-size:11px;color:rgba(255,255,255,.35);}
+  #finalline{display:none;font-size:20px;font-weight:800;margin-bottom:14px;}
+  #startbtn{cursor:pointer;border:none;border-radius:14px;font-size:20px;font-weight:900;letter-spacing:1px;
+    padding:16px 54px;color:#06160c;background:linear-gradient(180deg,#7fe3a0,#39b869);box-shadow:0 8px 26px rgba(57,184,105,.4);}
+  #startbtn:active{transform:scale(.97);}
+  #ver{position:absolute;right:10px;bottom:8px;z-index:6;color:rgba(255,255,255,.4);font-size:11px;pointer-events:none;}
+  .rotate{display:none;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="bar">
+    <span class="brand">♠ EUCHRE</span>
+    <span class="score us"><span class="lab">You + Partner</span> <b id="scoreUs">0</b><span class="tpips" id="tpUs"></span></span>
+    <span class="score them"><span class="lab">Opponents</span> <b id="scoreThem">0</b><span class="tpips" id="tpThem"></span></span>
+    <span class="tlabel">◦ dots = tricks this hand · number = game score (to 10)</span>
+    <span id="trumpChip">Trump: <span class="sym" id="trumpSym">—</span></span>
+  </div>
+
+  <div class="seat" id="seatN"><span class="name">Partner <span class="dealerdot">◆D</span></span><div class="callbadge">CALLED IT</div><div class="backs" id="backsN"></div></div>
+  <div class="seat" id="seatW"><span class="name">West <span class="dealerdot">◆D</span></span><div class="callbadge">CALLED IT</div><div class="backs vert" id="backsW"></div></div>
+  <div class="seat" id="seatE"><span class="name">East <span class="dealerdot">◆D</span></span><div class="callbadge">CALLED IT</div><div class="backs vert" id="backsE"></div></div>
+  <div class="seat" id="seatS"><span class="name">You <span class="dealerdot">◆D</span></span><div class="callbadge">CALLED IT</div></div>
+
+  <div id="upcard"><div class="lab">UP-CARD</div><div id="upcardFace"></div></div>
+  <div id="trick"></div>
+  <div id="toast"></div>
+
+  <div id="prompt">
+    <div class="q" id="promptQ"></div>
+    <div class="btns" id="promptBtns"></div>
+    <label id="alone" style="display:none;"><input type="checkbox" id="aloneChk"> Go alone (partner sits out — worth more)</label>
+  </div>
+
+  <div id="hand"></div>
+  <div id="ver">Euchre for Seniors · v1.0</div>
+
+  <div id="overlay">
+    <div class="kick">DJ'S PUZZLE PALACE · HONEST CARD GAMES</div>
+    <h1>EUCHRE <span class="s">♠♥♦♣</span></h1>
+    <div class="sub" id="subLine">Big cards, easy play, a fair deal. Play offline against the computer.</div>
+    <div id="finalline"></div>
+    <div class="how" id="howBox">
+      <div><b>Goal:</b> you + your partner (top) race the two opponents to <b>10 points</b>.</div>
+      <div><b>Bowers:</b> the Jack of trump is the <b>Right Bower</b> (highest). The other Jack of the same color is the <b>Left Bower</b> (2nd, and it counts as trump).</div>
+      <div><b>Each hand:</b> call or pass on trump, then play 5 tricks. Follow the led suit if you can. Highest trump — or highest card of the led suit — wins the trick.</div>
+      <div><b>Scoring:</b> take 3–4 tricks = 1, all 5 = 2, alone & all 5 = 4. Call it and take fewer than 3 = "euchred," opponents get 2.</div>
+      <div><b>Honest:</b> deals are truly random, the computer plays by the same rules you do — no rigged hands, no timers, ads only between games.</div>
+    </div>
+    <button id="startbtn">DEAL</button>
+    <div class="foot">A DJ's Puzzle Palace game · prototype</div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+// ---------- constants ----------
+var SUITS=['H','D','C','S'];
+var SUIT_SYM={H:'♥',D:'♦',C:'♣',S:'♠'};
+var SUIT_NAME={H:'Hearts',D:'Diamonds',C:'Clubs',S:'Spades'};
+var SUIT_COLOR={H:'red',D:'red',C:'blk',S:'blk'};
+var RANKS=['9','10','J','Q','K','A'];
+var RANK_VAL={'9':9,'10':10,'J':11,'Q':12,'K':13,'A':14};
+// seats: 0 South(you) 1 West 2 North(partner) 3 East
+var SEATNAME=['You','West','Partner','East'];
+var SEAT_TAG=['S','W','N','E'];
+var TEAM=[0,1,0,1]; // 0 = you+partner, 1 = opponents
+
+function sameColor(a,b){ return SUIT_COLOR[a]===SUIT_COLOR[b]; }
+function leftSuit(trump){ // suit of the left bower
+  for(var i=0;i<SUITS.length;i++) if(SUITS[i]!==trump && sameColor(SUITS[i],trump)) return SUITS[i];
+}
+
+// ---------- state ----------
+var G=null; // game
+function newGame(){
+  G={ scores:[0,0], dealer:Math.floor(Math.random()*4), inProgress:true };
+  el('scoreUs').textContent=0; el('scoreThem').textContent=0;
+}
+
+// ---------- deck ----------
+function makeDeck(){
+  var d=[];
+  for(var s=0;s<4;s++) for(var r=0;r<6;r++) d.push({s:SUITS[s],r:RANKS[r]});
+  return d;
+}
+function shuffle(a){
+  for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i];a[i]=a[j];a[j]=t; }
+  return a;
+}
+
+// ---------- card power under trump ----------
+function isRight(c,trump){ return c.r==='J' && c.s===trump; }
+function isLeft(c,trump){ return c.r==='J' && c.s===leftSuit(trump); }
+function effSuit(c,trump){ // suit a card "belongs to" for following
+  if(isLeft(c,trump)) return trump;
+  return c.s;
+}
+function cardPower(c,trump,led){
+  // higher = stronger, in context of led suit
+  if(isRight(c,trump)) return 1000;
+  if(isLeft(c,trump)) return 900;
+  if(c.s===trump) return 500+RANK_VAL[c.r];
+  if(led && effSuit(c,trump)===led) return 100+RANK_VAL[c.r];
+  return RANK_VAL[c.r]; // off-suit, can't win
+}
+
+// ---------- deal ----------
+function deal(){
+  var deck=shuffle(makeDeck());
+  var hands=[[],[],[],[]];
+  // deal 5 each (simple 5x4)
+  for(var k=0;k<5;k++) for(var p=0;p<4;p++) hands[p].push(deck.pop());
+  var up=deck.pop();
+  G.hands=hands; G.up=up; G.kitty=deck; // remaining 3 unused
+  G.trump=null; G.maker=-1; G.alone=-1; G.caller=-1;
+  G.tricks=[0,0,0,0]; G.trickCount=0;
+  G.leader=(G.dealer+1)%4;
+  sortHand(0);
+}
+function sortHand(p){
+  // stable-ish display sort by suit then rank (trump-aware once trump known)
+  var t=G.trump;
+  G.hands[p].sort(function(a,b){
+    var sa=t?effSuit(a,t):a.s, sb=t?effSuit(b,t):b.s;
+    if(sa!==sb) return SUITS.indexOf(sa)-SUITS.indexOf(sb);
+    if(t) return cardPower(b,t,null)-cardPower(a,t,null);
+    return RANK_VAL[b.r]-RANK_VAL[a.r];
+  });
+}
+
+// ---------- bidding ----------
+var STICK_DEALER=true; // dealer must call in round 2
+
+function handStrength(hand, trump, considerUp){
+  // rough 0..~40 heuristic
+  var s=0;
+  for(var i=0;i<hand.length;i++){
+    var c=hand[i];
+    if(isRight(c,trump)) s+=15;
+    else if(isLeft(c,trump)) s+=13;
+    else if(c.s===trump) s+=6+RANK_VAL[c.r]/5;
+    else if(c.r==='A') s+=3; // off ace
+    else s+=0.4;
+  }
+  return s;
+}
+
+// ---------- AI bidding decisions ----------
+function aiBidRound1(p){
+  // upcard suit is candidate trump; dealer would pick it up
+  var trump=G.up.s;
+  var hyp=G.hands[p].slice();
+  var strength=handStrength(hyp, trump, true);
+  // dealer gets the upcard (bonus); dealer's team benefit
+  var dealerTeam = TEAM[G.dealer]===TEAM[p];
+  if(dealerTeam) strength+=3;
+  if(p===G.dealer) strength+=3;
+  var alone = strength>28;
+  if(strength>=17) return {call:true, suit:trump, alone:alone};
+  return {call:false};
+}
+function aiBidRound2(p){
+  var best=null;
+  for(var i=0;i<SUITS.length;i++){
+    var suit=SUITS[i];
+    if(suit===G.up.s) continue; // can't name turned-down suit
+    var strength=handStrength(G.hands[p], suit, false);
+    if(!best || strength>best.strength) best={suit:suit,strength:strength};
+  }
+  var mustCall = STICK_DEALER && p===G.dealer;
+  var alone = best.strength>28;
+  if(best.strength>=17 || mustCall) return {call:true, suit:best.suit, alone:alone};
+  return {call:false};
+}
+
+// ---------- setting trump ----------
+function setTrump(suit, maker, alone){
+  G.trump=suit; G.maker=maker; G.caller=maker; G.alone=alone?maker:-1;
+  el('trumpSym').textContent=SUIT_SYM[suit];
+  el('trumpSym').style.color=SUIT_COLOR[suit]==='red'?'#ff6b6b':'#e8e8e8';
+  markCaller(maker);
+}
+function dealerPickup(){
+  // dealer picks up upcard and discards worst
+  var h=G.hands[G.dealer];
+  h.push(G.up);
+  // discard lowest-power card (not trump if avoidable)
+  var worst=0, wp=1e9;
+  for(var i=0;i<h.length;i++){
+    var pw=cardPower(h[i],G.trump,null);
+    if(pw<wp){ wp=pw; worst=i; }
+  }
+  h.splice(worst,1);
+  if(G.dealer===0) sortHand(0);
+}
+
+// ---------- trick play ----------
+function legalMoves(p){
+  var h=G.hands[p], t=G.trump, led=G.ledSuit;
+  if(led==null) return h.map(function(_,i){return i;});
+  var canFollow=[];
+  for(var i=0;i<h.length;i++) if(effSuit(h[i],t)===led) canFollow.push(i);
+  if(canFollow.length) return canFollow;
+  return h.map(function(_,i){return i;});
+}
+function aiPlay(p){
+  var h=G.hands[p], t=G.trump, led=G.ledSuit;
+  var legal=legalMoves(p);
+  // current winning card in trick
+  var win=currentTrickWinner();
+  var partnerWinning = win.seat>=0 && TEAM[win.seat]===TEAM[p];
+  // map legal to cards with power
+  var opts=legal.map(function(i){ return {i:i, c:h[i], pw:cardPower(h[i],t,led)}; });
+  if(led==null){
+    // leading: lead a strong trump early if we're maker, else lead off-ace, else lowest
+    opts.sort(function(a,b){return b.pw-a.pw;});
+    // prefer leading an off-suit ace (power 100+14) or right bower; avoid wasting
+    var ace=opts.find(function(o){return o.c.r==='A' && effSuit(o.c,t)!==t;});
+    if(TEAM[p]===TEAM[G.maker] && opts[0].pw>=900) return opts[0].i; // lead bower to draw trump
+    if(ace) return ace.i;
+    // lead middling
+    return opts[Math.floor(opts.length/2)].i;
+  }
+  // following
+  var winners=opts.filter(function(o){return o.pw>win.power;});
+  if(partnerWinning && win.power>=500){
+    // partner has a strong trump/led winner — throw lowest
+    opts.sort(function(a,b){return a.pw-b.pw;});
+    return opts[0].i;
+  }
+  if(winners.length){
+    // win as cheaply as possible
+    winners.sort(function(a,b){return a.pw-b.pw;});
+    return winners[0].i;
+  }
+  // can't win — throw lowest
+  opts.sort(function(a,b){return a.pw-b.pw;});
+  return opts[0].i;
+}
+function currentTrickWinner(){
+  var best={seat:-1,power:-1,card:null};
+  for(var i=0;i<G.play.length;i++){
+    var pl=G.play[i];
+    var pw=cardPower(pl.card,G.trump,G.ledSuit);
+    if(pw>best.power){ best={seat:pl.seat,power:pw,card:pl.card}; }
+  }
+  return best;
+}
+
+// ================= FLOW =================
+var busy=false;
+function startHand(){
+  deal();
+  renderAll();
+  renderTrickPips();
+  el('trumpSym').textContent='—'; el('trumpSym').style.color='';
+  el('upcard').style.display='block';
+  renderUpcard();
+  toast(G.dealer===0?'You deal':SEATNAME[G.dealer]+' deals');
+  G.bidRound=1; G.bidTurn=(G.dealer+1)%4; G.passes=0;
+  setTimeout(bidStep,700);
+}
+
+function bidStep(){
+  if(G.trump!=null) return;
+  var p=G.bidTurn;
+  setActive(p);
+  if(p===0){ humanBid(); return; }
+  var decision = G.bidRound===1 ? aiBidRound1(p) : aiBidRound2(p);
+  if(decision.call){
+    commitCall(p, decision.suit, decision.alone, G.bidRound===1);
+    return;
+  }
+  toast(SEATNAME[p]+' passes');
+  advanceBid();
+}
+function advanceBid(){
+  G.passes++;
+  if(G.bidRound===1 && G.passes>=4){
+    // flip upcard down, round 2
+    G.bidRound=2; G.passes=0; G.bidTurn=(G.dealer+1)%4;
+    el('upcardFace').classList.add('turned');
+    toast('Up-card turned down');
+    setTimeout(bidStep,650);
+    return;
+  }
+  if(G.bidRound===2 && G.passes>=4){
+    // all passed (only if stick-dealer off) -> redeal
+    toast('Everyone passed — redeal');
+    G.dealer=(G.dealer+1)%4;
+    setTimeout(startHand,900);
+    return;
+  }
+  G.bidTurn=(G.bidTurn+1)%4;
+  setTimeout(bidStep,600);
+}
+function commitCall(p, suit, alone, round1){
+  setTrump(suit, p, alone);
+  if(round1){ dealerPickup(); }
+  el('upcard').style.display='none';
+  var who = p===0?'You':SEATNAME[p];
+  var al = alone?' — going ALONE':'';
+  toast(who+' called '+SUIT_NAME[suit]+al);
+  sortHand(0);
+  renderAll();
+  // start play from left of dealer; if alone, partner of maker sits out
+  G.leader=(G.dealer+1)%4;
+  G.sitOut = alone ? (p+2)%4 : -1;
+  if(G.sitOut===G.leader) G.leader=(G.leader+1)%4;
+  setTimeout(startTrick,900);
+}
+
+function startTrick(){
+  G.play=[]; G.ledSuit=null; G.resolving=false;
+  G.turn=G.leader;
+  if(G.turn===G.sitOut) G.turn=(G.turn+1)%4;
+  playStep();
+}
+function playStep(){
+  clearActive();
+  var p=G.turn;
+  setActive(p);
+  if(p===0){ humanPlay(); return; }
+  setTimeout(function(){
+    var idx=aiPlay(p);
+    doPlay(p, idx);
+  }, 620);
+}
+function doPlay(p, idx){
+  if(G.resolving) return;                 // ignore stray inputs during resolution
+  if(p!==G.turn) return;                   // only the active seat may play
+  if(idx<0 || idx>=G.hands[p].length) return;
+  var card=G.hands[p].splice(idx,1)[0];
+  if(G.ledSuit==null) G.ledSuit=effSuit(card,G.trump);
+  G.play.push({seat:p, card:card});
+  renderPlayed();
+  renderAll();
+  var activeCount = G.sitOut>=0?3:4;
+  if(G.play.length>=activeCount){
+    G.resolving=true;
+    setTimeout(finishTrick,850);
+  } else {
+    G.turn=nextSeat(p);
+    setTimeout(playStep,140);
+  }
+}
+function nextSeat(p){
+  var n=(p+1)%4;
+  if(n===G.sitOut) n=(n+1)%4;
+  return n;
+}
+function slideVec(seat){
+  if(seat===2) return {dx:0,dy:-250};   // North (top / your partner)
+  if(seat===0) return {dx:0,dy:250};    // South (you)
+  if(seat===1) return {dx:-300,dy:0};   // West
+  return {dx:300,dy:0};                  // East
+}
+function finishTrick(){
+  var activeCount = G.sitOut>=0?3:4;
+  if(!G.play || G.play.length<activeCount){ G.resolving=false; return; } // safety: not a full trick
+  var w=currentTrickWinner();
+  if(w.seat<0){ G.resolving=false; return; }
+  G.tricks[w.seat]++;
+  G.trickCount++;
+  renderTrickPips();
+  toast((w.seat===0?'You win':SEATNAME[w.seat]+' wins')+' the trick');
+  clearActive();
+  setActive(w.seat);                        // glow the winner while the cards slide over
+  // let the completed trick sit a beat, then slide all cards to the winner
+  setTimeout(function(){
+    var cards=document.querySelectorAll('#trick .played');
+    var v=slideVec(w.seat);
+    for(var i=0;i<cards.length;i++){
+      var c=cards[i];
+      c.style.left=(parseFloat(c.style.left||0)+v.dx)+'px';
+      c.style.top=(parseFloat(c.style.top||0)+v.dy)+'px';
+      c.style.opacity='0';
+      c.style.transform='scale(.72)';
+    }
+  }, 560);
+  setTimeout(function(){
+    el('trick').innerHTML='';
+    G.resolving=false;
+    clearActive();
+    if(G.trickCount>=5){ scoreHand(); return; }
+    G.leader=w.seat;
+    startTrick();
+  }, 1180);
+}
+
+function scoreHand(){
+  var makerTeam=TEAM[G.maker];
+  var makerTricks=G.tricks[0*0]; // compute below
+  var t=[0,0];
+  for(var i=0;i<4;i++) t[TEAM[i]]+=G.tricks[i];
+  var pts=[0,0];
+  var msg='';
+  if(t[makerTeam]>=3){
+    if(t[makerTeam]===5){
+      if(G.alone>=0){ pts[makerTeam]=4; msg=(makerTeam===0?'You + Partner':'Opponents')+' swept it ALONE — 4 points!'; }
+      else { pts[makerTeam]=2; msg=(makerTeam===0?'You + Partner':'Opponents')+' took all 5 — 2 points!'; }
+    } else {
+      pts[makerTeam]=1; msg=(makerTeam===0?'You + Partner':'Opponents')+' made it — 1 point.';
+    }
+  } else {
+    pts[1-makerTeam]=2;
+    msg=(makerTeam===0?'You got EUCHRED!':'You EUCHRED them!')+' — 2 points to '+(1-makerTeam===0?'you':'opponents')+'.';
+  }
+  G.scores[0]+=pts[0]; G.scores[1]+=pts[1];
+  el('scoreUs').textContent=G.scores[0];
+  el('scoreThem').textContent=G.scores[1];
+  clearCaller();
+  bigToast(msg);
+  setTimeout(function(){
+    if(G.scores[0]>=10 || G.scores[1]>=10){ endGame(); return; }
+    G.dealer=(G.dealer+1)%4;
+    startHand();
+  }, 1900);
+}
+
+function endGame(){
+  var won=G.scores[0]>=10;
+  var ov=el('overlay'); ov.style.display='flex';
+  el('subLine').textContent = won ? 'You and your partner reached 10 first.' : 'The opponents reached 10 first.';
+  el('finalline').style.display='block';
+  el('finalline').textContent=(won?'🏆 YOU WIN  ':'GAME OVER  ')+G.scores[0]+' – '+G.scores[1];
+  el('finalline').style.color= won?'#8fe0ff':'#ffb0a0';
+  el('howBox').style.display='none';
+  el('startbtn').textContent='NEW GAME';
+}
+
+// ================= HUMAN INPUT =================
+function humanBid(){
+  var pr=el('prompt'); pr.style.display='block';
+  el('alone').style.display='flex'; el('aloneChk').checked=false;
+  var q=el('promptQ'), b=el('promptBtns'); b.innerHTML='';
+  if(G.bidRound===1){
+    var upName=SUIT_NAME[G.up.s];
+    q.innerHTML='Order up the <span class="up">'+SUIT_SYM[G.up.s]+' '+upName+'</span>?'+
+      (G.dealer===0?' (you\'ll pick it up)':'');
+    addBtn(b,'Order it up','gold',function(){ hidePrompt(); commitCall(0,G.up.s,el('aloneChk').checked,true); });
+    addBtn(b,'Pass','ghost',function(){ hidePrompt(); toast('You pass'); advanceBid(); });
+  } else {
+    q.innerHTML='Name trump'+(STICK_DEALER&&G.dealer===0?' (you\'re stuck — must call)':'')+':';
+    for(var i=0;i<SUITS.length;i++){
+      (function(suit){
+        if(suit===G.up.s) return;
+        var btn=document.createElement('button');
+        btn.className='btn suit '+SUIT_COLOR[suit];
+        btn.textContent=SUIT_SYM[suit];
+        btn.onclick=function(){ hidePrompt(); commitCall(0,suit,el('aloneChk').checked,false); };
+        b.appendChild(btn);
+      })(SUITS[i]);
+    }
+    if(!(STICK_DEALER&&G.dealer===0)){
+      addBtn(b,'Pass','ghost',function(){ hidePrompt(); toast('You pass'); advanceBid(); });
+    }
+  }
+}
+function hidePrompt(){ el('prompt').style.display='none'; el('alone').style.display='none'; }
+function addBtn(parent,label,cls,fn){
+  var btn=document.createElement('button'); btn.className='btn '+(cls||'');
+  btn.textContent=label; btn.onclick=fn; parent.appendChild(btn);
+}
+function humanPlay(){
+  renderHand(true);
+}
+function onCardTap(idx){
+  if(G.turn!==0) return;
+  var legal=legalMoves(0);
+  if(legal.indexOf(idx)<0){ toast('You must follow '+SUIT_NAME[G.ledSuit]); return; }
+  doPlay(0, idx);
+}
+
+// ================= RENDER =================
+function el(id){ return document.getElementById(id); }
+function cardFaceHTML(c){
+  var col=SUIT_COLOR[c.s];
+  var sym=SUIT_SYM[c.s];
+  return '<div class="card '+col+'">'+
+    '<div class="corner tl"><div class="rank">'+c.r+'</div><div class="suit">'+sym+'</div></div>'+
+    '<div class="pip">'+sym+'</div>'+
+    '<div class="corner br"><div class="rank">'+c.r+'</div><div class="suit">'+sym+'</div></div>'+
+    '</div>';
+}
+// build a sized card element (fonts scale with width)
+function buildCard(c, cw){
+  var ch=Math.round(cw*1.44);
+  var d=document.createElement('div'); d.innerHTML=cardFaceHTML(c);
+  var elc=d.firstChild;
+  elc.style.width=cw+'px'; elc.style.height=ch+'px';
+  var ranks=elc.querySelectorAll('.rank'), suits=elc.querySelectorAll('.suit'), pip=elc.querySelector('.pip');
+  var rf=Math.round(cw*0.30), sf=Math.round(cw*0.26), pf=Math.round(cw*0.50);
+  for(var i=0;i<ranks.length;i++) ranks[i].style.fontSize=rf+'px';
+  for(var j=0;j<suits.length;j++) suits[j].style.fontSize=sf+'px';
+  if(pip) pip.style.fontSize=pf+'px';
+  return elc;
+}
+function renderUpcard(){
+  var f=el('upcardFace'); f.innerHTML=''; f.appendChild(buildCard(G.up, 104));
+}
+function pipHTML(n){ var s=''; for(var i=0;i<5;i++) s+='<i class="'+(i<n?'on':'')+'"></i>'; return s; }
+function renderTrickPips(){
+  if(!G.tricks) return;
+  el('tpUs').innerHTML   = pipHTML(G.tricks[0]+G.tricks[2]);
+  el('tpThem').innerHTML = pipHTML(G.tricks[1]+G.tricks[3]);
+}
+function renderBacks(){
+  function backs(id,n){ var s=''; for(var i=0;i<n;i++) s+='<div class="cardback"></div>'; el(id).innerHTML=s; }
+  backs('backsN', G.hands[2].length - (G.sitOut===2?0:0));
+  backs('backsW', G.hands[1].length);
+  backs('backsE', G.hands[3].length);
+  if(G.sitOut===2) el('backsN').innerHTML='';
+  if(G.sitOut===1) el('backsW').innerHTML='';
+  if(G.sitOut===3) el('backsE').innerHTML='';
+}
+function renderHand(interactive){
+  var h=el('hand'); h.innerHTML='';
+  var hand=G.hands[0], n=hand.length;
+  if(!n) return;
+  var legal = interactive? legalMoves(0):[];
+  // responsive sizing + fan-overlap so big cards always fit across the screen
+  var avail=Math.min(innerWidth,940)-20;
+  var MAXW=186, OVR=0.60, cw, step, overlap;
+  if(avail/n >= 120){ cw=Math.min(MAXW, Math.floor(avail/n)-10); step=cw+8; overlap=false; }
+  else { cw=Math.min(MAXW, Math.floor(avail/(1+(n-1)*OVR))); step=Math.floor(cw*OVR); overlap=true; }
+  for(var i=0;i<n;i++){
+    (function(idx,c){
+      var elc=buildCard(c, cw);
+      elc.style.marginLeft = idx===0 ? '0' : (overlap ? (-(cw-step))+'px' : '8px');
+      elc.style.zIndex = 10+idx;
+      if(interactive){
+        if(legal.indexOf(idx)>=0){ elc.classList.add('playable'); elc.style.zIndex=40+idx; elc.onclick=function(){onCardTap(idx);}; }
+        else elc.classList.add('dim');
+      }
+      h.appendChild(elc);
+    })(i, hand[i]);
+  }
+}
+function renderPlayed(){
+  var t=el('trick'); t.innerHTML='';
+  // center cards scale with the screen so they read about as big as the hand
+  // cards on any device (big on tablets, sensible on phones); a compact
+  // pinwheel keeps the four cards centered and clear of the hand below.
+  var vw=Math.min(innerWidth,940);
+  var CW=Math.max(104, Math.min(172, Math.round(vw*0.30))), CH=Math.round(CW*1.44);
+  var BOX=380, cx=BOX/2, cy=BOX/2, OFF=Math.round(CW*0.52);
+  var anchor={
+    2:{l:cx-CW/2,     tp:cy-CH/2-OFF}, // North (partner, top)
+    0:{l:cx-CW/2,     tp:cy-CH/2+OFF}, // South (you, bottom)
+    1:{l:cx-CW/2-OFF, tp:cy-CH/2},     // West (left)
+    3:{l:cx-CW/2+OFF, tp:cy-CH/2}      // East (right)
+  };
+  for(var i=0;i<G.play.length;i++){
+    var pl=G.play[i], a=anchor[pl.seat];
+    var elc=buildCard(pl.card, CW);
+    elc.classList.add('played');
+    elc.style.left=a.l+'px'; elc.style.top=a.tp+'px';
+    t.appendChild(elc);
+  }
+}
+function renderAll(){
+  renderBacks();
+  renderHand(G.turn===0 && G.trump!=null && !!G.play && !G.resolving);
+  updateDealer();
+}
+function updateDealer(){
+  ['S','W','N','E'].forEach(function(tag,seat){
+    var elm=el('seat'+tag);
+    elm.classList.toggle('dealer', G.dealer===seat);
+  });
+}
+function setActive(p){
+  clearActive();
+  el('seat'+SEAT_TAG[p]).classList.add('active');
+}
+function clearActive(){
+  ['S','W','N','E'].forEach(function(tag){ el('seat'+tag).classList.remove('active'); });
+}
+function markCaller(p){
+  clearCaller();
+  el('seat'+SEAT_TAG[p]).classList.add('caller');
+}
+function clearCaller(){ ['S','W','N','E'].forEach(function(tag){ el('seat'+tag).classList.remove('caller'); }); }
+
+var toastT=null;
+function toast(msg){
+  var t=el('toast'); t.textContent=msg; t.style.opacity=1; t.style.fontSize='15px';
+  clearTimeout(toastT); toastT=setTimeout(function(){t.style.opacity=0;}, 1400);
+}
+function bigToast(msg){
+  var t=el('toast'); t.textContent=msg; t.style.opacity=1; t.style.fontSize='18px';
+  clearTimeout(toastT); toastT=setTimeout(function(){t.style.opacity=0;}, 1800);
+}
+
+// ================= BOOT =================
+el('startbtn').addEventListener('click', function(){
+  el('overlay').style.display='none';
+  newGame();
+  startHand();
+});
+
+// ---- test hook ----
+window.__EU={
+  state:function(){return G;},
+  auto:function(maxHands){ // play a full auto game (human seat also AI) for testing
+    return autoGame(maxHands);
+  }
+};
+// deterministic-ish auto play to validate engine (no rendering dependency issues)
+function autoGame(maxHands){
+  // Run engine headlessly by simulating decisions synchronously.
+  var log={hands:0, err:null, finalScores:null};
+  try{
+    var localDealer=Math.floor(Math.random()*4);
+    var scores=[0,0];
+    var guard=0;
+    while(scores[0]<10 && scores[1]<10 && guard<200){
+      guard++;
+      var r=simOneHand(localDealer);
+      scores[0]+=r.pts[0]; scores[1]+=r.pts[1];
+      log.hands++;
+      localDealer=(localDealer+1)%4;
+      if(r.err){ log.err=r.err; break; }
+    }
+    log.finalScores=scores;
+  }catch(e){ log.err=String(e)+' @ '+(e.stack||'').split('\n')[1]; }
+  return log;
+}
+function simOneHand(dealer){
+  var deck=shuffle(makeDeck());
+  var hands=[[],[],[],[]];
+  for(var k=0;k<5;k++) for(var p=0;p<4;p++) hands[p].push(deck.pop());
+  var up=deck.pop();
+  var S={hands:hands,up:up,dealer:dealer,trump:null,maker:-1,alone:-1,tricks:[0,0,0,0]};
+  // bidding r1
+  var maker=-1,trump=null,alone=false,round1=false;
+  var order=[(dealer+1)%4,(dealer+2)%4,(dealer+3)%4,dealer];
+  for(var i=0;i<4;i++){
+    var p=order[i]; var strength=hStr(hands[p],up.s);
+    if(TEAM[dealer]===TEAM[p]) strength+=3; if(p===dealer) strength+=3;
+    if(strength>=17){ maker=p; trump=up.s; alone=strength>28; round1=true; break; }
+  }
+  if(maker<0){
+    for(var i2=0;i2<4;i2++){
+      var p2=order[i2]; var best=null;
+      for(var s2=0;s2<4;s2++){ if(SUITS[s2]===up.s) continue; var st=hStr(hands[p2],SUITS[s2]); if(!best||st>best.st) best={su:SUITS[s2],st:st}; }
+      var must=STICK_DEALER&&p2===dealer;
+      if(best.st>=17||must){ maker=p2; trump=best.su; alone=best.st>28; break; }
+    }
+  }
+  if(maker<0){ return {pts:[0,0], err:null, redeal:true}; }
+  S.trump=trump; S.maker=maker; S.alone=alone?maker:-1;
+  if(round1){ // dealer picks up
+    hands[dealer].push(up);
+    var worst=0,wp=1e9; for(var d=0;d<hands[dealer].length;d++){ var pw=cardPow(hands[dealer][d],trump,null); if(pw<wp){wp=pw;worst=d;} }
+    hands[dealer].splice(worst,1);
+  }
+  var sitOut = alone?(maker+2)%4:-1;
+  var leader=(dealer+1)%4; if(leader===sitOut) leader=(leader+1)%4;
+  // verify hand sizes
+  for(var v=0;v<4;v++){ if(v===dealer){ if(hands[v].length!==5) return {pts:[0,0],err:'dealer hand '+hands[v].length}; } else if(hands[v].length!==5) return {pts:[0,0],err:'hand '+v+' size '+hands[v].length}; }
+  // play 5 tricks
+  for(var tr=0;tr<5;tr++){
+    var play=[]; var led=null; var turn=leader; var cnt=sitOut>=0?3:4;
+    for(var c=0;c<cnt;c++){
+      if(turn===sitOut) turn=(turn+1)%4;
+      var legal=legalSim(hands[turn],trump,led);
+      if(legal.length===0) return {pts:[0,0],err:'no legal moves seat '+turn};
+      var idx=aiPlaySim(hands[turn],trump,led,play,turn);
+      if(legal.indexOf(idx)<0) return {pts:[0,0],err:'illegal ai move seat '+turn};
+      var card=hands[turn].splice(idx,1)[0];
+      if(led==null) led=effSuit(card,trump);
+      play.push({seat:turn,card:card});
+      turn=(turn+1)%4; if(turn===sitOut) turn=(turn+1)%4;
+    }
+    // winner
+    var bw={seat:-1,power:-1};
+    for(var w=0;w<play.length;w++){ var pw2=cardPow(play[w].card,trump,led); if(pw2>bw.power) bw={seat:play[w].seat,power:pw2}; }
+    S.tricks[bw.seat]++; leader=bw.seat;
+  }
+  // score
+  var mt=TEAM[maker]; var tt=[0,0]; for(var q=0;q<4;q++) tt[TEAM[q]]+=S.tricks[q];
+  if(tt[0]+tt[1]!==5) return {pts:[0,0],err:'trick total '+(tt[0]+tt[1])};
+  var pts=[0,0];
+  if(tt[mt]>=3){ if(tt[mt]===5){ pts[mt]=alone?4:2; } else pts[mt]=1; }
+  else pts[1-mt]=2;
+  return {pts:pts, err:null};
+}
+// sim helpers (mirror engine)
+function hStr(hand,trump){ var s=0; for(var i=0;i<hand.length;i++){ var c=hand[i]; if(isRight(c,trump))s+=15; else if(isLeft(c,trump))s+=13; else if(c.s===trump)s+=6+RANK_VAL[c.r]/5; else if(c.r==='A')s+=3; else s+=0.4; } return s; }
+function cardPow(c,trump,led){ return cardPower(c,trump,led); }
+function legalSim(hand,trump,led){ if(led==null) return hand.map(function(_,i){return i;}); var f=[]; for(var i=0;i<hand.length;i++) if(effSuit(hand[i],trump)===led) f.push(i); return f.length?f:hand.map(function(_,i){return i;}); }
+function aiPlaySim(hand,trump,led,play,p){
+  var legal=legalSim(hand,trump,led);
+  var bw={seat:-1,power:-1}; for(var w=0;w<play.length;w++){ var pw=cardPow(play[w].card,trump,led); if(pw>bw.power) bw={seat:play[w].seat,power:pw}; }
+  var opts=legal.map(function(i){return {i:i,pw:cardPow(hand[i],trump,led)};});
+  if(led==null){ opts.sort(function(a,b){return b.pw-a.pw;}); return opts[Math.floor(opts.length/2)].i; }
+  var partnerWin = bw.seat>=0 && TEAM[bw.seat]===TEAM[p];
+  var winners=opts.filter(function(o){return o.pw>bw.power;});
+  if(partnerWin && bw.power>=500){ opts.sort(function(a,b){return a.pw-b.pw;}); return opts[0].i; }
+  if(winners.length){ winners.sort(function(a,b){return a.pw-b.pw;}); return winners[0].i; }
+  opts.sort(function(a,b){return a.pw-b.pw;}); return opts[0].i;
+}
+})();
+// ---- PWA service worker ----
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>
+
+===== FILE: euchre/privacy.html =====
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Privacy Policy — Euchre for Seniors</title>
+<style>body{font-family:system-ui,Segoe UI,Arial,sans-serif;background:#0d1b2a;color:#dbe6f2;max-width:720px;margin:0 auto;padding:40px 20px;line-height:1.7}h1{color:#5cc8ff}h2{color:#8fb6de;margin-top:28px}a{color:#5cc8ff}</style></head><body>
+<h1>Privacy Policy — Euchre for Seniors - Big Cards</h1>
+<p><em>Effective date: July 18, 2026</em></p>
+<p>Euchre for Seniors - Big Cards is published by DJ's Puzzle Palace ("we").</p>
+<h2>Data we collect</h2>
+<p><strong>None.</strong> Euchre for Seniors does not collect, store, transmit, sell, or share any personal information or device data. The app has no account system, no analytics SDKs, and no tracking.</p>
+<h2>Local storage</h2>
+<p>Any scores or settings are saved only on your own device. They never leave your device, and we cannot see them. Uninstalling the app or clearing its data removes them.</p>
+<h2>Children</h2>
+<p>The app is suitable for general audiences and collects no data from anyone, including children.</p>
+<h2>Changes</h2>
+<p>If this policy ever changes (for example, if ads are added in a future update), the updated policy will be posted at this address.</p>
+<h2>Contact</h2>
+<p>Questions: <a href="mailto:davidgowans@gmail.com">davidgowans@gmail.com</a></p>
+</body></html>
+
+===== FILE: euchre/assetlinks.json =====
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.djspuzzlepalace.euchre",
+      "sha256_cert_fingerprints": [
+        "44:41:62:1A:75:FF:98:40:5C:0D:B9:4E:8A:96:94:E5:4E:84:54:86:13:EC:A6:2E:B5:5F:75:29:91:96:8E:C4",
+        "D5:B6:DD:5D:A2:26:72:2A:2F:6C:C4:A6:BB:A7:66:F6:99:EA:4F:16:50:D6:08:00:A0:E9:6E:A9:8B:3D:49:46"
+      ]
+    }
+  }
+]
+
+===== FILE: euchre/_redirects =====
+/.well-known/assetlinks.json /assetlinks.json 200
+
+===== FILE: euchre/manifest.webmanifest =====
+{
+  "name": "Euchre for Seniors - Big Cards",
+  "short_name": "Euchre",
+  "description": "Euchre with big readable cards and easy play. A fair deal, no ads mid-game, fully offline against the computer.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b5c2e",
+  "theme_color": "#0b5c2e",
+  "categories": ["games", "card"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
+
+===== END =====
