@@ -1,0 +1,947 @@
+===== FILE: pinochle/sw.js =====
+/* Pinochle Seniors: Big Cards — service worker */
+var CACHE = 'pin-v1-1';
+var ASSETS = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './icon-192.png',
+  './icon-512.png',
+  './icon-maskable-512.png',
+  './favicon.png',
+  './icon-apple-180.png'
+];
+
+self.addEventListener('install', function(e){
+  self.skipWaiting();
+  e.waitUntil(caches.open(CACHE).then(function(c){ return c.addAll(ASSETS); }).catch(function(){}));
+});
+
+self.addEventListener('activate', function(e){
+  e.waitUntil(
+    caches.keys().then(function(keys){
+      return Promise.all(keys.map(function(k){ if(k!==CACHE) return caches.delete(k); }));
+    }).then(function(){ return self.clients.claim(); })
+  );
+});
+
+self.addEventListener('fetch', function(e){
+  if(e.request.method !== 'GET') return;
+  e.respondWith(
+    caches.match(e.request).then(function(hit){
+      if(hit) return hit;
+      return fetch(e.request).then(function(res){
+        var copy = res.clone();
+        caches.open(CACHE).then(function(c){ c.put(e.request, copy); }).catch(function(){});
+        return res;
+      }).catch(function(){
+        return caches.match('./index.html');
+      });
+    })
+  );
+});
+
+===== FILE: pinochle/index.html =====
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#31090d">
+<title>Pinochle Seniors: Big Cards</title>
+<meta name="description" content="Pinochle with big readable cards, every meld counted and explained, and an honest random deal. No mid-game ads. Plays offline.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.png" sizes="any">
+<link rel="apple-touch-icon" href="icon-apple-180.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pinochle">
+<style>
+  :root{
+    --wine1:#6b2530; --wine2:#4a161e; --wine3:#2c0b10;
+    --gold:#e0b56b; --goldhi:#f6dda2; --walnut1:#4a3220; --walnut2:#2e1e11;
+    --cream:#faf5e9; --red:#c73030; --blk:#20242c;
+    --us:#f6dda2; --them:#e8c8cf;
+    --panel:rgba(30,8,12,.88);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;
+    font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--cream);
+    -webkit-user-select:none;user-select:none;touch-action:manipulation;
+    background:radial-gradient(ellipse 130% 95% at 50% 26%, var(--wine1), var(--wine2) 55%, var(--wine3) 100%);}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.5;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");}
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(ellipse 130% 100% at 50% 40%, transparent 52%, rgba(0,0,0,.5) 100%);}
+  #app{position:relative;width:100%;height:100%;z-index:1;}
+  #markL{position:absolute;left:26%;top:46%;transform:translate(-50%,-50%) rotate(-12deg);
+    font-size:min(46vw,300px);color:rgba(255,255,255,.04);z-index:0;pointer-events:none;line-height:1;}
+  #markR{position:absolute;left:74%;top:42%;transform:translate(-50%,-50%) rotate(10deg);
+    font-size:min(46vw,300px);color:rgba(0,0,0,.10);z-index:0;pointer-events:none;line-height:1;}
+
+  /* ===== walnut scoreboard ===== */
+  #board{position:absolute;top:0;left:0;right:0;z-index:6;padding:8px 10px 10px;
+    background:linear-gradient(180deg, rgba(255,255,255,.07), transparent 40%),
+      repeating-linear-gradient(93deg, rgba(0,0,0,.12) 0 3px, transparent 3px 9px, rgba(255,255,255,.04) 9px 11px, transparent 11px 28px),
+      linear-gradient(180deg, var(--walnut1), var(--walnut2));
+    border-bottom:2px solid rgba(224,181,107,.6);box-shadow:0 6px 24px rgba(0,0,0,.6);}
+  #board .title{display:flex;align-items:baseline;gap:10px;margin:0 2px 6px;white-space:nowrap;overflow:hidden;}
+  #board .brand{font-family:Georgia,'Times New Roman',serif;color:var(--goldhi);font-weight:700;
+    font-size:20px;letter-spacing:2.5px;}
+  #board .sub{font-size:11.5px;color:#e2cfa4;opacity:.9;font-weight:600;letter-spacing:.2px;text-overflow:ellipsis;overflow:hidden;}
+  #plaques{display:flex;gap:8px;}
+  .plaque{flex:1;border:1px solid rgba(224,181,107,.5);border-radius:10px;padding:6px 10px 7px;position:relative;
+    background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(0,0,0,.25));
+    box-shadow:inset 0 0 0 3px rgba(0,0,0,.2), inset 0 0 0 4px rgba(224,181,107,.22);}
+  .plaque .who{font-size:13.5px;font-weight:800;letter-spacing:1.2px;}
+  .plaque.us .who{color:var(--us);} .plaque.them .who{color:var(--them);}
+  .plaque .score{font-size:36px;font-weight:900;line-height:1.02;text-shadow:0 2px 4px rgba(0,0,0,.6);}
+  .plaque.us .score{color:var(--us);} .plaque.them .score{color:var(--them);}
+  .plaque .stat{font-size:11px;font-weight:700;color:#efe4cb;opacity:.95;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #bidBanner{margin-top:6px;text-align:center;font-size:14px;font-weight:800;color:var(--goldhi);display:none;}
+  #bidBanner .tr{font-size:17px;}
+
+  /* ===== seats ===== */
+  .seat{position:absolute;z-index:3;text-align:center;pointer-events:none;}
+  .seat .name{font-size:15px;font-weight:800;background:var(--panel);border:1px solid rgba(224,181,107,.35);
+    border-radius:18px;padding:4px 13px;display:inline-block;white-space:nowrap;}
+  .seat .bidchip{font-size:13px;font-weight:800;margin-top:3px;color:#efe4cb;background:rgba(0,0,0,.42);
+    border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:2px 10px;display:inline-block;}
+  .seat .bidchip:empty{display:none;}
+  .seat.turn .name{border-color:var(--gold);color:var(--goldhi);box-shadow:0 0 16px rgba(246,221,162,.55);}
+  .seat .backs{display:flex;gap:3px;justify-content:center;margin-top:5px;}
+  #seatN{left:50%;transform:translateX(-50%);}
+  #seatW{left:8px;} #seatE{right:8px;}
+  .cardback{background:
+      radial-gradient(circle at 50% 45%, rgba(246,221,162,.32) 0 12%, transparent 13%),
+      repeating-linear-gradient(45deg, #5d2a33 0 5px, #491d26 5px 10px),
+      linear-gradient(135deg,#5f2b35,#3a1219);
+    border:1.6px solid #cfa86a;border-radius:5px;box-shadow:0 2px 6px rgba(0,0,0,.5);}
+
+  /* ===== trick area ===== */
+  #trick{position:absolute;left:50%;transform:translate(-50%,0);z-index:4;width:230px;height:230px;pointer-events:none;}
+  .slot{position:absolute;left:50%;top:50%;}
+  .slot .card{position:absolute;transform:translate(-50%,-50%);animation:playin .28s ease backwards;}
+  #slotS{top:78%;} #slotN{top:22%;} #slotW{left:22%;} #slotE{left:78%;}
+  @keyframes playin{from{opacity:.25;transform:translate(-50%,-90%) scale(1.06);}to{opacity:1;transform:translate(-50%,-50%);}}
+  @keyframes winglow{0%,100%{box-shadow:0 4px 12px rgba(0,0,0,.5);}50%{box-shadow:0 0 26px rgba(246,221,162,.95), 0 4px 12px rgba(0,0,0,.5);}}
+  .slot .card.won{animation:winglow .9s ease 2;}
+
+  /* ===== card faces ===== */
+  .card{border-radius:11px;background:linear-gradient(160deg, #fffdf6, var(--cream) 60%, #efe7d4);
+    box-shadow:0 4px 12px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.9);
+    position:relative;display:inline-block;border:1px solid #d8d0bd;}
+  .card .corner{position:absolute;font-weight:900;line-height:.9;}
+  .card .tl{top:6px;left:8px;text-align:center;}
+  .card .br{bottom:6px;right:8px;text-align:center;transform:rotate(180deg);}
+  .card .rank{line-height:.9;} .card .suit{line-height:1;margin-top:-1px;}
+  .card .pip{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);line-height:1;
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,.14));}
+  .card.red{color:var(--red);} .card.blk{color:var(--blk);}
+  @keyframes dealin{from{opacity:0;transform:translateY(28px) scale(.9);}to{opacity:1;transform:none;}}
+
+  /* score popup */
+  #pop{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);z-index:12;pointer-events:none;
+    font-size:44px;font-weight:900;color:var(--goldhi);text-align:center;line-height:1.15;max-width:92vw;
+    font-family:Georgia,serif;
+    text-shadow:0 3px 2px rgba(0,0,0,.7), 0 0 28px rgba(246,221,162,.5);opacity:0;}
+  #pop.show{animation:popin 1.5s ease forwards;}
+  @keyframes popin{0%{opacity:0;transform:translate(-50%,-50%) scale(.6);}
+    12%{opacity:1;transform:translate(-50%,-50%) scale(1.06);}
+    22%{transform:translate(-50%,-50%) scale(1);}
+    78%{opacity:1;} 100%{opacity:0;transform:translate(-50%,-58%) scale(1);}}
+
+  /* ===== your hand column ===== */
+  #handwrap{position:absolute;left:0;right:0;bottom:8px;z-index:5;}
+  #youName{display:table;margin:0 auto 7px;font-size:15px;font-weight:800;background:var(--panel);
+    border:1px solid rgba(224,181,107,.35);border-radius:18px;padding:4px 14px;white-space:nowrap;}
+  #handwrap.turn #youName{border-color:var(--gold);color:var(--goldhi);box-shadow:0 0 16px rgba(246,221,162,.55);}
+  #hint{display:none;width:fit-content;margin:0 auto 9px;
+    font-size:17px;font-weight:800;color:var(--goldhi);text-align:center;max-width:92vw;
+    background:var(--panel);border:1px solid rgba(224,181,107,.4);border-radius:13px;padding:8px 18px;
+    box-shadow:0 4px 14px rgba(0,0,0,.5);pointer-events:none;}
+  #hand{display:flex;flex-direction:column;align-items:center;gap:6px;padding:0 6px;}
+  .handrow{display:flex;justify-content:center;align-items:flex-end;}
+  #hand .card{cursor:pointer;pointer-events:auto;transition:transform .12s ease, box-shadow .12s ease;position:relative;}
+  #hand .card.dim{opacity:.4;filter:saturate(.5);cursor:default;}
+  #hand .card:not(.dim):hover{transform:translateY(-16px);z-index:80 !important;}
+
+  /* ===== auction panel ===== */
+  #bidPanel{position:absolute;inset:0;z-index:18;display:none;flex-direction:column;align-items:center;
+    justify-content:center;padding:18px 14px;
+    background:radial-gradient(ellipse at 50% 38%, rgba(58,15,21,.96), rgba(18,4,7,.98));}
+  #bidPanel h2{font-family:Georgia,serif;font-size:30px;color:var(--goldhi);margin:0 0 4px;font-weight:700;letter-spacing:1px;}
+  #bpSub{font-size:17px;font-weight:700;color:#f0dfd2;margin-bottom:18px;text-align:center;max-width:480px;line-height:1.45;}
+  #bpSub b{color:var(--goldhi);}
+  #bpBtns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:14px;}
+  .bigbtn{cursor:pointer;border:1px solid rgba(224,181,107,.5);border-radius:14px;font-size:23px;font-weight:900;
+    padding:16px 26px;color:var(--cream);background:rgba(255,255,255,.07);}
+  .bigbtn:active{transform:scale(.95);}
+  .bigbtn.sug{background:linear-gradient(180deg,#f6dda2,#c9964e);color:#2a1600;border-color:#f6dda2;
+    box-shadow:0 0 18px rgba(246,221,162,.5);}
+  #bpNote{font-size:14px;color:rgba(255,255,255,.55);max-width:460px;text-align:center;line-height:1.5;}
+
+  /* ===== trump panel ===== */
+  #trumpPanel{position:absolute;inset:0;z-index:18;display:none;flex-direction:column;align-items:center;
+    justify-content:center;padding:18px;background:radial-gradient(ellipse at 50% 38%, rgba(58,15,21,.96), rgba(18,4,7,.98));}
+  #trumpPanel h2{font-family:Georgia,serif;font-size:30px;color:var(--goldhi);margin:0 0 6px;font-weight:700;}
+  #tpSub{font-size:16px;font-weight:700;color:#f0dfd2;margin-bottom:18px;}
+  #tpBtns{display:flex;gap:14px;}
+  .suitbtn{cursor:pointer;width:76px;height:76px;border-radius:16px;font-size:44px;line-height:76px;text-align:center;
+    border:1px solid rgba(224,181,107,.5);background:#faf5e9;}
+  .suitbtn.red{color:var(--red);} .suitbtn.blk{color:var(--blk);}
+  .suitbtn.sug{box-shadow:0 0 0 4px var(--gold), 0 0 22px rgba(246,221,162,.6);}
+  .suitbtn:active{transform:scale(.94);}
+
+  /* ===== meld/score panels ===== */
+  #meldPanel{position:absolute;inset:0;z-index:18;display:none;flex-direction:column;align-items:center;
+    justify-content:flex-start;padding:20px 14px;overflow-y:auto;
+    background:radial-gradient(ellipse at 50% 35%, rgba(58,15,21,.97), rgba(18,4,7,.985));}
+  #mpTitle{font-family:Georgia,serif;font-size:29px;font-weight:700;letter-spacing:1px;margin:2px 0 2px;color:var(--goldhi);}
+  #mpSub{font-size:15px;opacity:.85;font-weight:700;margin-bottom:10px;text-align:center;}
+  .mTeam{width:100%;max-width:560px;border:1px solid rgba(224,181,107,.4);border-radius:14px;
+    padding:10px 14px 12px;margin:6px 0;background:rgba(255,255,255,.05);
+    box-shadow:inset 0 0 0 3px rgba(0,0,0,.22), inset 0 0 0 4px rgba(224,181,107,.16);}
+  .mTeam .tname{font-size:18px;font-weight:900;letter-spacing:1.1px;margin-bottom:3px;}
+  .mTeam.us .tname{color:var(--us);} .mTeam.them .tname{color:var(--them);}
+  .mline{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:7px 4px;border-bottom:1px dashed rgba(255,255,255,.12);
+    opacity:0;transform:translateY(8px);animation:linein .4s ease forwards;}
+  @keyframes linein{to{opacity:1;transform:none;}}
+  .mline .t{font-size:18px;font-weight:800;text-align:left;}
+  .mline .p{font-size:22px;font-weight:900;white-space:nowrap;}
+  .mline .p.plus{color:var(--goldhi);} .mline .p.minus{color:#f0a0a0;}
+  .mTeam .msum{font-size:17px;font-weight:900;color:var(--goldhi);margin-top:6px;text-align:right;}
+  #mpTotalLine{font-family:Georgia,serif;font-size:21px;font-weight:700;color:var(--goldhi);margin:10px 0 6px;text-align:center;}
+  .btn{cursor:pointer;border:none;border-radius:15px;font-size:21px;font-weight:900;letter-spacing:1px;
+    padding:15px 44px;color:#2a1600;background:linear-gradient(180deg,#f6dda2,#c9964e);
+    box-shadow:0 6px 18px rgba(201,150,78,.4), inset 0 1px 0 rgba(255,255,255,.7);}
+  .btn:active{transform:scale(.96);}
+
+  /* ===== overlay ===== */
+  #overlay{position:absolute;inset:0;z-index:24;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at 50% 38%, rgba(70,20,28,.97), rgba(18,4,7,.99));text-align:center;padding:22px;overflow-y:auto;}
+  #overlay .kick{font-size:12px;letter-spacing:4px;color:var(--gold);font-weight:800;margin-bottom:10px;}
+  #overlay h1{font-family:Georgia,'Times New Roman',serif;font-size:clamp(34px,8.4vw,58px);margin:0;font-weight:700;color:#fff;
+    letter-spacing:2px;text-shadow:0 3px 10px rgba(0,0,0,.6);}
+  #overlay h1 .s{color:var(--goldhi);}
+  #overlay .deco{width:min(320px,70vw);height:14px;margin:10px auto 8px;position:relative;}
+  #overlay .deco::before, #overlay .deco::after{content:"";position:absolute;top:6px;height:1px;width:38%;
+    background:linear-gradient(90deg, transparent, rgba(224,181,107,.8));}
+  #overlay .deco::after{right:0;transform:scaleX(-1);}
+  #overlay .deco span{position:absolute;left:50%;top:0;transform:translateX(-50%);color:var(--gold);font-size:13px;}
+  #overlay .sub{font-size:clamp(15px,3vw,19px);color:#f0dfd2;margin:4px 0 18px;font-weight:700;}
+  #overlay .how{background:rgba(255,255,255,.05);border:1px solid rgba(224,181,107,.3);border-radius:15px;
+    padding:15px 20px;margin-bottom:20px;text-align:left;max-width:600px;
+    box-shadow:inset 0 0 0 3px rgba(0,0,0,.2), inset 0 0 0 4px rgba(224,181,107,.14);}
+  #overlay .how div{margin:8px 0;font-size:clamp(15px,2.8vw,17px);color:#f4e9de;line-height:1.45;}
+  #overlay .how b{color:var(--goldhi);}
+  #overlay .foot{margin-top:16px;font-size:12px;color:rgba(255,255,255,.4);}
+  #finalline{display:none;font-family:Georgia,serif;font-size:30px;font-weight:700;margin-bottom:10px;}
+  #resultbox{display:none;background:rgba(255,255,255,.05);border:1px solid rgba(224,181,107,.3);border-radius:15px;
+    padding:15px 22px;margin-bottom:18px;max-width:560px;font-size:18px;line-height:1.55;font-weight:600;}
+  #startbtn{font-size:25px;padding:19px 60px;border-radius:17px;}
+  #ver{position:absolute;right:10px;bottom:8px;z-index:6;color:rgba(255,255,255,.35);font-size:11px;pointer-events:none;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="markL">♦</div><div id="markR">♠</div>
+  <div id="board">
+    <div class="title"><span class="brand">PINOCHLE</span><span class="sub">for seniors · first team to 150 · every meld explained</span></div>
+    <div id="plaques">
+      <div class="plaque us" id="plaqueUs"><div class="who">YOU &amp; PARTNER</div>
+        <div class="score" id="scoreUs">0</div><div class="stat" id="statUs">meld — · counters —</div></div>
+      <div class="plaque them" id="plaqueThem"><div class="who">WEST &amp; EAST</div>
+        <div class="score" id="scoreThem">0</div><div class="stat" id="statThem">meld — · counters —</div></div>
+    </div>
+    <div id="bidBanner"></div>
+  </div>
+
+  <div class="seat" id="seatN"><span class="name">Partner</span><div class="bidchip" id="bcN"></div><div class="backs" id="backsN"></div></div>
+  <div class="seat" id="seatW"><span class="name">West</span><div class="bidchip" id="bcW"></div><div class="backs" id="backsW"></div></div>
+  <div class="seat" id="seatE"><span class="name">East</span><div class="bidchip" id="bcE"></div><div class="backs" id="backsE"></div></div>
+
+  <div id="trick">
+    <div class="slot" id="slotS"></div><div class="slot" id="slotW"></div>
+    <div class="slot" id="slotN"></div><div class="slot" id="slotE"></div>
+  </div>
+  <div id="pop"></div>
+
+  <div id="handwrap">
+    <span id="youName">You <span id="bcS"></span></span>
+    <div id="hint"></div>
+    <div id="hand"></div>
+  </div>
+
+  <div id="bidPanel">
+    <h2>The Auction</h2>
+    <div id="bpSub"></div>
+    <div id="bpBtns"></div>
+    <div id="bpNote">The winning bidder names trump. Your team must then reach the bid with
+      <b>meld + counters</b> — every ace, ten and king you capture is a counter, and the last trick is worth one more.</div>
+  </div>
+
+  <div id="trumpPanel">
+    <h2>Name Trump</h2>
+    <div id="tpSub">You won the bid! Pick your strongest suit.</div>
+    <div id="tpBtns"></div>
+  </div>
+
+  <div id="meldPanel">
+    <div id="mpTitle">Meld</div>
+    <div id="mpSub"></div>
+    <div class="mTeam us"><div class="tname">YOU &amp; PARTNER</div><div id="mLinesUs"></div><div class="msum" id="mSumUs"></div></div>
+    <div class="mTeam them"><div class="tname">WEST &amp; EAST</div><div id="mLinesThem"></div><div class="msum" id="mSumThem"></div></div>
+    <div id="mpTotalLine"></div>
+    <button class="btn" id="mpNext">NEXT</button>
+  </div>
+
+  <div id="overlay">
+    <div class="kick">DJ'S PUZZLE PALACE · HONEST CARD GAMES</div>
+    <h1>PINOCHLE <span class="s">♦♠</span></h1>
+    <div class="deco"><span>◆ ◆ ◆</span></div>
+    <div class="sub">Big cards. Every meld counted for you. An honest deal, always.</div>
+    <div id="finalline"></div>
+    <div id="resultbox"></div>
+    <div class="how" id="howBox">
+      <div><b>Teams:</b> you and your partner against West &amp; East. First team to <b>150 points</b> wins.</div>
+      <div><b>The auction:</b> bid for the right to name trump (minimum 20). Your team must reach the bid with <b>meld + counters</b> — or lose the bid.</div>
+      <div><b>Meld:</b> runs, marriages, aces around, the pinochle (J♦ &amp; Q♠)… <b>all counted for you and explained</b>, every hand.</div>
+      <div><b>The play:</b> follow suit and beat the best card when you can. Aces, tens and kings you capture are <b>counters</b> — 25 in every hand.</div>
+      <div><b>Honest:</b> a truly random deal, verified across 720,000 audited plays. No peeking, no favors — and every point shown so you can check it.</div>
+    </div>
+    <button class="btn" id="startbtn">DEAL</button>
+    <div class="foot">A DJ's Puzzle Palace game</div>
+  </div>
+  <div id="ver">Pinochle Seniors · v1.0</div>
+</div>
+
+<script>
+(function(){
+'use strict';
+function el(id){ return document.getElementById(id); }
+
+/* ================= ENGINE (verified in pinochle-sim.js) ================= */
+var SUIT_SYM=['♠','♥','♦','♣'], SUIT_COLOR=['blk','red','red','blk'];
+var VAL_NAME=['9','J','Q','K','10','A'];
+var GAME_TARGET=150, MIN_BID=20;
+var NINE=0, Jv=1, Qv=2, Kv=3, Tv=4, Av=5;
+function cardStr(c){ return VAL_NAME[c.v]+SUIT_SYM[c.s]; }
+function makeDeck(){ var d=[]; for(var s=0;s<4;s++)for(var v=0;v<6;v++){ d.push({v:v,s:s}); d.push({v:v,s:s}); } return d; }
+function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i];a[i]=a[j];a[j]=t; } return a; }
+function isCounter(c){ return c.v>=Kv; }
+function counts(hand){
+  var m=[[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0]];
+  hand.forEach(function(c){ m[c.s][c.v]++; });
+  return m;
+}
+function meldScore(hand, trump){
+  var m=counts(hand), lines=[], total=0;
+  function add(pts,text){ total+=pts; lines.push({pts:pts,text:text}); }
+  var runs=Math.min(m[trump][Av],m[trump][Tv],m[trump][Kv],m[trump][Qv],m[trump][Jv]);
+  if(runs===2) add(150,'DOUBLE RUN in trump '+SUIT_SYM[trump]+' — A 10 K Q J twice');
+  else if(runs===1) add(15,'Run in trump '+SUIT_SYM[trump]+' — A 10 K Q J');
+  var kq=Math.min(m[trump][Kv],m[trump][Qv])-runs;
+  for(var x=0;x<kq;x++) add(4,(runs?'Extra royal':'Royal')+' marriage — K'+SUIT_SYM[trump]+' & Q'+SUIT_SYM[trump]);
+  for(var s=0;s<4;s++){
+    if(s===trump) continue;
+    var mar=Math.min(m[s][Kv],m[s][Qv]);
+    for(var y=0;y<mar;y++) add(2,'Marriage — K'+SUIT_SYM[s]+' & Q'+SUIT_SYM[s]);
+  }
+  for(var d=0;d<m[trump][NINE];d++) add(1,'Dix — 9 of trump '+SUIT_SYM[trump]);
+  [[Av,10,100,'Aces'],[Kv,8,80,'Kings'],[Qv,6,60,'Queens'],[Jv,4,40,'Jacks']].forEach(function(ar){
+    var mn=2;
+    for(var s2=0;s2<4;s2++) mn=Math.min(mn,m[s2][ar[0]]);
+    if(mn===2) add(ar[2],'DOUBLE '+ar[3]+' around — all eight!');
+    else if(mn===1) add(ar[1],ar[3]+' around — one in every suit');
+  });
+  var pj=Math.min(m[2][Jv],m[0][Qv]);
+  if(pj===2) add(30,'DOUBLE PINOCHLE — both J♦ and both Q♠');
+  else if(pj===1) add(4,'Pinochle — J♦ & Q♠');
+  return {total:total, lines:lines};
+}
+function bestSoFar(trick, trump){
+  var led=trick[0].c.s, bi=0;
+  function str(c){ return (c.s===trump)?100+c.v:(c.s===led?c.v:-1); }
+  for(var i=1;i<trick.length;i++) if(str(trick[i].c)>str(trick[bi].c)) bi=i;
+  return trick[bi];
+}
+function trickWinner(trick,trump){ return bestSoFar(trick,trump).p; }
+function legalPlays(hand,trick,trump){
+  if(trick.length===0) return hand.slice();
+  var led=trick[0].c.s;
+  var best=bestSoFar(trick,trump).c;
+  var inLed=hand.filter(function(c){return c.s===led;});
+  if(inLed.length){
+    if(led===trump){
+      var higher=inLed.filter(function(c){return c.v>best.v;});
+      return higher.length?higher:inLed;
+    }
+    if(best.s!==trump){
+      var beat=inLed.filter(function(c){return c.v>best.v;});
+      return beat.length?beat:inLed;
+    }
+    return inLed;
+  }
+  var trumps=hand.filter(function(c){return c.s===trump;});
+  if(trumps.length){
+    if(best.s===trump){
+      var over=trumps.filter(function(c){return c.v>best.v;});
+      return over.length?over:trumps;
+    }
+    return trumps;
+  }
+  return hand.slice();
+}
+function counterPoints(cards,gotLast){ return cards.filter(isCounter).length+(gotLast?1:0); }
+function scoreHand(meldT,ctrT,tricksT,bidTeam,bid){
+  var res=[];
+  for(var t=0;t<2;t++){
+    var lines=[], total=0;
+    if(tricksT[t]===0){
+      lines.push({pts:0,text:'Took no tricks — meld doesn\'t count this hand'});
+      res.push({total:0,set:false,lines:lines}); continue;
+    }
+    var made=meldT[t]+ctrT[t];
+    if(t===bidTeam){
+      if(made>=bid){
+        lines.push({pts:meldT[t],text:'Meld'});
+        lines.push({pts:ctrT[t],text:'Counters taken in play'});
+        lines.push({pts:0,text:'Bid '+bid+' — MADE IT with '+made});
+        res.push({total:made,set:false,lines:lines});
+      } else {
+        lines.push({pts:-bid,text:'SET! Needed '+bid+', made only '+made+' — lose the bid'});
+        res.push({total:-bid,set:true,lines:lines});
+      }
+    } else {
+      lines.push({pts:meldT[t],text:'Meld'});
+      lines.push({pts:ctrT[t],text:'Counters taken in play'});
+      res.push({total:made,set:false,lines:lines});
+    }
+  }
+  return res;
+}
+function bestTrumpFor(hand){
+  var bestS=0,bestV=-1;
+  for(var s=0;s<4;s++){
+    var ms=meldScore(hand,s).total;
+    var m=counts(hand);
+    var strength=ms+m[s].reduce(function(a,b){return a+b;},0)*1.4+m[s][Av]*2+m[s][Tv]*1.2;
+    if(strength>bestV){ bestV=strength; bestS=s; }
+  }
+  return bestS;
+}
+function handEstimate(hand){
+  var s=bestTrumpFor(hand);
+  var meld=meldScore(hand,s).total;
+  var m=counts(hand);
+  var trumpLen=m[s].reduce(function(a,b){return a+b;},0);
+  var aces=0; for(var i=0;i<4;i++) aces+=m[i][Av];
+  var est=meld+7+trumpLen*1.1+aces*1.4;
+  return {trump:s, meld:meld, maxBid:Math.floor(est)};
+}
+function aiBidTurn(hand,highBid){
+  var e=handEstimate(hand);
+  var need=Math.max(MIN_BID,highBid+1);
+  if(e.maxBid>=need&&e.meld>=4) return need;
+  return -1;
+}
+function aiPlay(hand,trick,trump,ctx){
+  var legal=legalPlays(hand,trick,trump);
+  function str(c){ return (c.s===trump?100:0)+c.v; }
+  var low=legal.slice().sort(function(a,b){return str(a)-str(b);});
+  function wins(c){ return trickWinner(trick.concat([{p:ctx.p,c:c}]),trump)===ctx.p; }
+  if(trick.length===0){
+    var aces=legal.filter(function(c){return c.v===Av&&(ctx.declarerTeam===ctx.team?true:c.s!==trump);});
+    if(aces.length) return aces[0];
+    return low[0];
+  }
+  var winners=legal.filter(wins).sort(function(a,b){return str(a)-str(b);});
+  var losers=legal.filter(function(c){return !wins(c);}).sort(function(a,b){return str(a)-str(b);});
+  var partnerBest=bestSoFar(trick,trump).p===ctx.partner;
+  var trickCounters=trick.filter(function(x){return isCounter(x.c);}).length;
+  if(partnerBest&&trick.length===3){
+    var feed=losers.filter(isCounter);
+    return feed.length?feed[0]:(losers.length?losers[0]:winners[0]);
+  }
+  if(winners.length&&(trickCounters>0||trick.length===3)) return winners[0];
+  if(losers.length){
+    var safe=losers.filter(function(c){return !isCounter(c);});
+    return safe.length?safe[0]:losers[0];
+  }
+  return winners.length?winners[0]:low[0];
+}
+
+/* ================= RENDER HELPERS ================= */
+function cardFaceHTML(c){ var col=SUIT_COLOR[c.s], sym=SUIT_SYM[c.s], rk=VAL_NAME[c.v];
+  return '<div class="card '+col+'">'+
+    '<div class="corner tl"><div class="rank">'+rk+'</div><div class="suit">'+sym+'</div></div>'+
+    '<div class="pip">'+sym+'</div>'+
+    '<div class="corner br"><div class="rank">'+rk+'</div><div class="suit">'+sym+'</div></div>'+
+    '</div>'; }
+function buildCard(c,cw){ var ch=Math.round(cw*1.42);
+  var d=document.createElement('div'); d.innerHTML=cardFaceHTML(c); var elc=d.firstChild;
+  elc.style.width=cw+'px'; elc.style.height=ch+'px';
+  var ranks=elc.querySelectorAll('.rank'), suits=elc.querySelectorAll('.suit'), pip=elc.querySelector('.pip');
+  var rf=Math.round(cw*0.30), sf=Math.round(cw*0.26), pf=Math.round(cw*0.52);
+  for(var i=0;i<ranks.length;i++) ranks[i].style.fontSize=rf+'px';
+  for(var j=0;j<suits.length;j++) suits[j].style.fontSize=sf+'px';
+  if(pip) pip.style.fontSize=pf+'px';
+  return elc; }
+
+/* ================= GAME STATE ================= */
+var G=null;
+var POP_MS=1400, AI_MS=850;
+var SEAT_NAMES=['You','West','Partner','East'];
+function hint(msg){ var h=el('hint'); h.textContent=msg||''; h.style.display=msg?'block':'none'; }
+function pop(text,then){
+  var p=el('pop'); p.innerHTML=text; p.classList.remove('show');
+  void p.offsetWidth; p.classList.add('show');
+  if(then) setTimeout(then,POP_MS);
+}
+function newGame(){
+  G={ scores:[0,0], dealer:Math.floor(Math.random()*4), over:false, phase:'idle',
+      hands:null, bids:null, active:null, highBid:0, highP:-1, anyBid:false,
+      declarer:-1, bid:0, bidTeam:-1, trump:-1,
+      meldT:[0,0], wonCards:null, tricksT:null, lastWinner:-1,
+      trick:null, leader:0, turn:0, dealAnim:false };
+  updBoard(); deal();
+}
+function deal(){
+  G.dealer=(G.dealer+1)%4;
+  var d=shuffle(makeDeck());
+  G.hands=[sortHand(d.slice(0,12)), d.slice(12,24), d.slice(24,36), d.slice(36,48)];
+  G.active=[true,true,true,true]; G.highBid=MIN_BID-1; G.highP=-1; G.anyBid=false;
+  G.declarer=-1; G.bid=0; G.bidTeam=-1; G.trump=-1;
+  G.meldT=[0,0]; G.wonCards=[[],[]]; G.tricksT=[0,0]; G.lastWinner=-1;
+  G.trick=[]; G.dealAnim=true;
+  el('overlay').style.display='none'; el('meldPanel').style.display='none';
+  el('bidBanner').style.display='none';
+  clearTrick();
+  ['bcS','bcN','bcW','bcE'].forEach(function(id){ el(id).textContent=''; });
+  G.phase='auction';
+  renderAll(); updBoard();
+  auctionTurn((G.dealer+1)%4, 0);
+}
+function sortHand(h){
+  var order=[1,2,3,0];
+  return h.slice().sort(function(a,b){
+    var d=order.indexOf(a.s)-order.indexOf(b.s);
+    return d!==0?d:b.v-a.v;
+  });
+}
+/* ---- auction ---- */
+function passesCount(){ return G.active.filter(function(a){return !a;}).length; }
+function auctionTurn(p, guard){
+  if(G.over) return;
+  if(guard>60){ finishAuction(G.dealer, MIN_BID); return; }
+  // auction ends when 3 have passed and someone bid
+  if(G.anyBid && passesCount()>=3){ finishAuction(G.highP, G.highBid); return; }
+  if(!G.anyBid && passesCount()===3){ // dealer stuck
+    finishAuction(G.dealer, MIN_BID, true); return;
+  }
+  if(!G.active[p]){ auctionTurn((p+1)%4, guard+1); return; }
+  setTurn(p);
+  if(p===0){ showBidPanel(); return; }
+  setTimeout(function(){
+    var b=aiBidTurn(G.hands[p], G.anyBid?G.highBid:MIN_BID-1);
+    if(b>0){ G.highBid=b; G.highP=p; G.anyBid=true;
+      setChip(p,'bid '+b);
+      pop(SEAT_NAMES[p]+' bids <b>'+b+'</b>', function(){ auctionTurn((p+1)%4, guard+1); });
+    } else {
+      G.active[p]=false; setChip(p,'pass');
+      pop(SEAT_NAMES[p]+' passes', function(){ auctionTurn((p+1)%4, guard+1); });
+    }
+  }, AI_MS);
+}
+function showBidPanel(){
+  var e=handEstimate(G.hands[0]);
+  var need=Math.max(MIN_BID, G.highBid+1);
+  el('bpSub').innerHTML=(G.anyBid?('High bid is <b>'+G.highBid+'</b> by '+SEAT_NAMES[G.highP]+'.'):'No bids yet — minimum is <b>'+MIN_BID+'</b>.')+
+    '<br>Your hand is worth about <b>'+e.maxBid+'</b> (meld '+e.meld+', best suit '+SUIT_SYM[e.trump]+').';
+  var wrap=el('bpBtns'); wrap.innerHTML='';
+  function btn(label, cls, fn){ var b=document.createElement('button'); b.className='bigbtn'+(cls?' '+cls:''); b.innerHTML=label; b.onclick=fn; wrap.appendChild(b); return b; }
+  var canBid = need<=50;
+  var sugBid = e.maxBid>=need;
+  if(canBid){
+    btn('BID '+need, sugBid?'sug':'', function(){ youBid(need); });
+    if(need+4<=50) btn('BID '+(need+4), '', function(){ youBid(need+4); });
+  }
+  btn('PASS', sugBid?'':'sug', function(){ youPass(); });
+  el('bidPanel').style.display='flex';
+}
+function youBid(n){
+  el('bidPanel').style.display='none';
+  G.highBid=n; G.highP=0; G.anyBid=true;
+  setChip(0,'bid '+n);
+  pop('You bid <b>'+n+'</b>', function(){ auctionTurn(1, 0); });
+}
+function youPass(){
+  el('bidPanel').style.display='none';
+  G.active[0]=false; setChip(0,'pass');
+  pop('You pass', function(){ auctionTurn(1, 0); });
+}
+function finishAuction(winner, bid, stuck){
+  G.declarer=winner; G.bid=bid; G.bidTeam=winner%2;
+  G.phase='trump';
+  var msg=stuck?(SEAT_NAMES[winner]+' is stuck at <b>'+bid+'</b>'):(SEAT_NAMES[winner]+' wins the bid at <b>'+bid+'</b>');
+  pop(msg, function(){
+    if(winner===0) showTrumpPanel();
+    else {
+      G.trump=bestTrumpFor(G.hands[winner]);
+      announceTrump();
+    }
+  });
+}
+function showTrumpPanel(){
+  var sug=bestTrumpFor(G.hands[0]);
+  var wrap=el('tpBtns'); wrap.innerHTML='';
+  for(var s=0;s<4;s++){ (function(s){
+    var b=document.createElement('button');
+    b.className='suitbtn '+SUIT_COLOR[s]+(s===sug?' sug':'');
+    b.textContent=SUIT_SYM[s];
+    b.onclick=function(){ el('trumpPanel').style.display='none'; G.trump=s; announceTrump(); };
+    wrap.appendChild(b);
+  })(s); }
+  el('trumpPanel').style.display='flex';
+}
+function announceTrump(){
+  el('bidBanner').style.display='block';
+  el('bidBanner').innerHTML=SEAT_NAMES[G.declarer]+' bid '+G.bid+' · trump is <span class="tr">'+SUIT_SYM[G.trump]+'</span>';
+  pop('Trump is <b style="font-size:56px">'+SUIT_SYM[G.trump]+'</b>', function(){ showMeld(); });
+}
+/* ---- meld ---- */
+function showMeld(){
+  G.phase='meld';
+  var per=[];
+  for(var p=0;p<4;p++){ per.push(meldScore(G.hands[p], G.trump)); }
+  G.meldT=[per[0].total+per[2].total, per[1].total+per[3].total];
+  el('meldPanel').style.display='flex'; el('meldPanel').scrollTop=0;
+  el('mpTitle').textContent='Meld';
+  el('mpSub').textContent='Trump is '+SUIT_SYM[G.trump]+' · '+SEAT_NAMES[G.declarer]+' must make '+G.bid;
+  el('mLinesUs').innerHTML=''; el('mLinesThem').innerHTML='';
+  el('mSumUs').textContent=''; el('mSumThem').textContent='';
+  el('mpTotalLine').textContent='';
+  var nx=el('mpNext'); nx.style.display='none';
+  var seq=[];
+  [[0,'You'],[2,'Partner']].forEach(function(pp){ per[pp[0]].lines.forEach(function(L){ seq.push({t:0,who:pp[1],L:L}); }); });
+  [[1,'West'],[3,'East']].forEach(function(pp){ per[pp[0]].lines.forEach(function(L){ seq.push({t:1,who:pp[1],L:L}); }); });
+  var i=0;
+  function reveal(){
+    if(i<seq.length){
+      var it=seq[i], d=document.createElement('div'); d.className='mline';
+      d.innerHTML='<div class="t">'+it.who+': '+it.L.text+'</div><div class="p plus">+'+it.L.pts+'</div>';
+      el(it.t===0?'mLinesUs':'mLinesThem').appendChild(d);
+      i++; setTimeout(reveal, 850);
+    } else {
+      [['mLinesUs',0],['mLinesThem',1]].forEach(function(bx){
+        if(!el(bx[0]).children.length)
+          el(bx[0]).innerHTML='<div class="mline"><div class="t">No meld this hand</div><div class="p">+0</div></div>';
+      });
+      el('mSumUs').textContent='Team meld: '+G.meldT[0];
+      el('mSumThem').textContent='Team meld: '+G.meldT[1];
+      el('mpTotalLine').textContent='Now the play — 25 counters on the table.';
+      nx.textContent='PLAY THE HAND';
+      nx.style.display='inline-block';
+      nx.onclick=function(){ el('meldPanel').style.display='none'; startPlay(); };
+    }
+  }
+  setTimeout(reveal, 450);
+}
+/* ---- play ---- */
+function startPlay(){
+  G.phase='play';
+  G.leader=G.declarer;
+  ['bcS','bcN','bcW','bcE'].forEach(function(id){ el(id).textContent=''; });
+  updBoard();
+  hint('');
+  nextTurn(G.leader);
+}
+function setTurn(p){
+  G.turn=p;
+  el('seatW').classList.toggle('turn',p===1);
+  el('seatN').classList.toggle('turn',p===2);
+  el('seatE').classList.toggle('turn',p===3);
+  el('handwrap').classList.toggle('turn',p===0);
+}
+function nextTurn(p){
+  if(G.over) return;
+  if(G.trick.length===4){ finishTrick(); return; }
+  setTurn(p);
+  if(p===0){
+    G.phase='playYou';
+    var lead=G.trick.length===0;
+    hint(lead?'Your lead — tap a card.':'Your turn — beat the best card if you can.');
+    renderHand();
+  } else {
+    G.phase='playAI';
+    renderHand();
+    setTimeout(function(){
+      var c=aiPlay(G.hands[p], G.trick, G.trump, {p:p,team:p%2,partner:(p+2)%4,declarerTeam:G.bidTeam});
+      playCard(p,c);
+    }, G.trick.length===0?650:AI_MS);
+  }
+}
+function onCardTap(idx){
+  if(G.phase!=='playYou') return;
+  var c=G.hands[0][idx];
+  if(!c||!c._legal) return;
+  G.phase='playWait';
+  hint('');
+  playCard(0,c);
+}
+function playCard(p,c){
+  var removed=false;
+  G.hands[p]=G.hands[p].filter(function(x){ if(!removed&&x.v===c.v&&x.s===c.s){ removed=true; return false; } return true; });
+  G.trick.push({p:p,c:c});
+  renderTrickCard(p,c);
+  renderAll();
+  if(G.trick.length===4) setTimeout(finishTrick, 700);
+  else nextTurn((p+1)%4);
+}
+function finishTrick(){
+  var w=trickWinner(G.trick,G.trump);
+  var slots={0:'slotS',1:'slotW',2:'slotN',3:'slotE'};
+  var sc=el(slots[w]).querySelector('.card'); if(sc) sc.classList.add('won');
+  G.trick.forEach(function(x){ G.wonCards[w%2].push(x.c); });
+  G.tricksT[w%2]++; G.lastWinner=w;
+  updBoard();
+  setTimeout(function(){
+    clearTrick(); G.trick=[];
+    if(G.hands.every(function(h){return h.length===0;})){ endHand(); return; }
+    nextTurn(w);
+  }, 1050);
+}
+function clearTrick(){ ['slotS','slotW','slotN','slotE'].forEach(function(id){ el(id).innerHTML=''; }); }
+function renderTrickCard(p,c){
+  var slots={0:'slotS',1:'slotW',2:'slotN',3:'slotE'};
+  var cw=Math.max(64, Math.min(96, Math.round(Math.min(innerWidth,940)*0.17)));
+  el(slots[p]).innerHTML='';
+  el(slots[p]).appendChild(buildCard(c,cw));
+}
+/* ---- hand end ---- */
+function endHand(){
+  G.phase='score';
+  var ctrT=[counterPoints(G.wonCards[0], G.lastWinner%2===0), counterPoints(G.wonCards[1], G.lastWinner%2===1)];
+  var hs=scoreHand(G.meldT, ctrT, G.tricksT, G.bidTeam, G.bid);
+  el('meldPanel').style.display='flex'; el('meldPanel').scrollTop=0;
+  el('mpTitle').textContent='Hand Complete';
+  el('mpSub').textContent=SEAT_NAMES[G.declarer]+' bid '+G.bid+' with trump '+SUIT_SYM[G.trump];
+  el('mLinesUs').innerHTML=''; el('mLinesThem').innerHTML='';
+  el('mSumUs').textContent=''; el('mSumThem').textContent='';
+  el('mpTotalLine').textContent='';
+  var nx=el('mpNext'); nx.style.display='none';
+  var seq=[];
+  for(var t=0;t<2;t++) hs[t].lines.forEach(function(L){ seq.push({t:t,L:L}); });
+  var i=0;
+  function reveal(){
+    if(i<seq.length){
+      var it=seq[i], d=document.createElement('div'); d.className='mline';
+      var cls=it.L.pts<0?'minus':'plus';
+      var val=(it.L.pts>=0?'+':'')+it.L.pts;
+      d.innerHTML='<div class="t">'+it.L.text+'</div><div class="p '+cls+'">'+val+'</div>';
+      el(it.t===0?'mLinesUs':'mLinesThem').appendChild(d);
+      i++; setTimeout(reveal, 900);
+    } else {
+      G.scores[0]+=hs[0].total; G.scores[1]+=hs[1].total;
+      el('mSumUs').textContent=(hs[0].total>=0?'+':'')+hs[0].total+' this hand';
+      el('mSumThem').textContent=(hs[1].total>=0?'+':'')+hs[1].total+' this hand';
+      updBoard();
+      el('mpTotalLine').textContent='You & Partner '+G.scores[0]+' · West & East '+G.scores[1];
+      var ended=false, winTeam=-1;
+      if(G.scores[0]>=GAME_TARGET||G.scores[1]>=GAME_TARGET){
+        ended=true;
+        if(G.scores[0]>=GAME_TARGET&&G.scores[1]>=GAME_TARGET) winTeam=G.bidTeam; // bidder goes out
+        else winTeam=G.scores[0]>=GAME_TARGET?0:1;
+      }
+      nx.textContent=ended?'SEE RESULT':'NEXT HAND';
+      nx.style.display='inline-block';
+      nx.onclick=function(){
+        el('meldPanel').style.display='none';
+        if(ended) endGame(winTeam); else deal();
+      };
+    }
+  }
+  setTimeout(reveal, 450);
+}
+function endGame(winTeam){
+  G.over=true;
+  var youWin=winTeam===0;
+  el('overlay').style.display='flex';
+  el('howBox').style.display='none';
+  el('finalline').style.display='block';
+  el('resultbox').style.display='block';
+  el('finalline').textContent= youWin? '🏆 YOU WIN!' : 'West & East win';
+  el('finalline').style.color= youWin? 'var(--goldhi)':'var(--them)';
+  el('resultbox').innerHTML='<b>Final:</b> You &amp; Partner '+G.scores[0]+' · West &amp; East '+G.scores[1]+
+    ((G.scores[0]>=GAME_TARGET&&G.scores[1]>=GAME_TARGET)?'<br>Both teams crossed 150 — the bidding team goes out first.':'')+
+    '<br><span style="opacity:.6">[ between-games break — a gentle ad can appear here later ]</span>';
+  el('startbtn').textContent='PLAY AGAIN';
+  el('startbtn').onclick=function(){ el('finalline').style.display='none'; el('resultbox').style.display='none'; newGame(); };
+}
+/* ================= RENDER ================= */
+function setChip(p,text){
+  var ids={0:'bcS',1:'bcW',2:'bcN',3:'bcE'};
+  el(ids[p]).textContent=text;
+}
+function updBoard(){
+  el('scoreUs').textContent=G?G.scores[0]:0;
+  el('scoreThem').textContent=G?G.scores[1]:0;
+  function stat(t){
+    if(!G||G.phase==='auction'||G.phase==='idle') return 'meld — · counters —';
+    var ctr=G.wonCards?counterPoints(G.wonCards[t], false):0;
+    return 'meld '+(G.meldT?G.meldT[t]:0)+' · counters '+ctr+' · tricks '+(G.tricksT?G.tricksT[t]:0);
+  }
+  el('statUs').textContent=stat(0);
+  el('statThem').textContent=stat(1);
+}
+function layoutSeats(){
+  var bh=el('board').offsetHeight;
+  el('seatN').style.top=(bh+6)+'px';
+  el('seatW').style.top=(bh+96)+'px';
+  el('seatE').style.top=(bh+96)+'px';
+  el('trick').style.top=(bh+150)+'px';
+}
+function renderBacks(){
+  function backs(id,n){
+    var bw=20, bh=Math.round(bw*1.42), s='';
+    var show=Math.min(n,7);
+    for(var i=0;i<show;i++) s+='<div class="cardback" style="width:'+bw+'px;height:'+bh+'px"></div>';
+    el(id).innerHTML=s;
+  }
+  backs('backsN',G.hands?G.hands[2].length:0);
+  backs('backsW',G.hands?G.hands[1].length:0);
+  backs('backsE',G.hands?G.hands[3].length:0);
+}
+function renderHand(){
+  var h=el('hand'); h.innerHTML='';
+  if(!G.hands) return;
+  var cards=G.hands[0], n=cards.length;
+  if(!n) return;
+  var myTurn=(G.phase==='playYou');
+  var legal=myTurn?legalPlays(cards,G.trick,G.trump):[];
+  // legality by identity count: mark first matching copies
+  var legalLeft={};
+  legal.forEach(function(c){ var k=c.v+':'+c.s; legalLeft[k]=(legalLeft[k]||0)+1; });
+  var rows=n>7?[[0,Math.ceil(n/2)],[Math.ceil(n/2),n]]:[[0,n]];
+  var availW=Math.min(innerWidth,940)-14;
+  var trickBottom=el('board').offsetHeight+150+230;
+  var nonH=el('youName').offsetHeight+7+22;
+  var hintEl=el('hint');
+  if(hintEl.style.display!=='none'&&hintEl.textContent) nonH+=hintEl.offsetHeight+9;
+  var budgetH=innerHeight-10-trickBottom-nonH+40;
+  var rowH=Math.floor((Math.max(budgetH,150)-6*(rows.length-1))/rows.length);
+  var maxCWH=Math.max(58, Math.floor(rowH/1.42));
+  var seen={};
+  rows.forEach(function(rg){
+    var a=rg[0], b=rg[1], m=b-a;
+    var CW=Math.min(150, maxCWH, 112);
+    var strip=Math.max(38, Math.min(58, Math.floor((availW-CW)/Math.max(m-1,1))));
+    if(strip>CW*0.8) strip=Math.floor(CW*0.8);
+    var row=document.createElement('div'); row.className='handrow';
+    row.style.position='relative'; row.style.height=Math.round(CW*1.42+16)+'px';
+    row.style.width=(CW+strip*(m-1))+'px';
+    for(var i=a;i<b;i++){ (function(idx,c,pos){
+      var elc=buildCard(c,CW);
+      elc.style.position='absolute';
+      elc.style.left=(pos*strip)+'px';
+      elc.style.bottom='0';
+      elc.style.zIndex=pos+1;
+      if(G.dealAnim) elc.style.animation='dealin .5s cubic-bezier(.25,.9,.3,1) '+(idx*60)+'ms backwards';
+      var k=c.v+':'+c.s;
+      if(myTurn){
+        if(legalLeft[k]>0){ c._legal=true; legalLeft[k]--; }
+        else { c._legal=false; elc.classList.add('dim'); }
+      } else c._legal=false;
+      elc.onclick=function(){ onCardTap(idx); };
+      row.appendChild(elc);
+    })(i, cards[i], i-a); }
+    h.appendChild(row);
+  });
+  G.dealAnim=false;
+}
+function renderAll(){ layoutSeats(); renderBacks(); renderHand(); updBoard(); }
+window.addEventListener('resize', function(){ if(G) renderAll(); });
+el('startbtn').onclick=function(){ newGame(); };
+
+/* test hook */
+window.__PIN={ get G(){return G;}, newGame:newGame, deal:deal, meldScore:meldScore,
+  legalPlays:legalPlays, trickWinner:trickWinner, handEstimate:handEstimate,
+  tap:onCardTap, youBid:youBid, youPass:youPass,
+  pickTrump:function(s){ el('trumpPanel').style.display='none'; G.trump=s; announceTrump(); },
+  next:function(){ var b=el('mpNext'); if(b&&getComputedStyle(b).display!=='none'){ b.onclick(); return true; } return false; },
+  state:function(){ function vis(id){ return getComputedStyle(el(id)).display!=='none'; }
+    return {phase:G?G.phase:'none', scores:G?G.scores.slice():null,
+    bid:G?G.bid:0, declarer:G?G.declarer:-1, trump:G?G.trump:-1,
+    hand:G&&G.hands?G.hands[0].length:0, trick:G?G.trick.length:0,
+    over:G?G.over:false, overlay:vis('overlay'), bidPanel:vis('bidPanel'),
+    trumpPanel:vis('trumpPanel'), meldPanel:vis('meldPanel')}; } };
+})();
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>
+
+===== FILE: pinochle/privacy.html =====
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Privacy Policy — Pinochle Seniors</title>
+<style>body{font-family:system-ui,Segoe UI,Arial,sans-serif;background:#0d1b2a;color:#dbe6f2;max-width:720px;margin:0 auto;padding:40px 20px;line-height:1.7}h1{color:#5cc8ff}h2{color:#8fb6de;margin-top:28px}a{color:#5cc8ff}</style></head><body>
+<h1>Privacy Policy — Pinochle Seniors: Big Cards</h1>
+<p><em>Effective date: July 19, 2026</em></p>
+<p>Pinochle Seniors: Big Cards is published by DJ's Puzzle Palace ("we").</p>
+<h2>Data we collect</h2>
+<p><strong>None.</strong> Pinochle Seniors does not collect, store, transmit, sell, or share any personal information or device data. The app has no account system, no analytics SDKs, and no tracking.</p>
+<h2>Local storage</h2>
+<p>Any scores or settings are saved only on your own device. They never leave your device, and we cannot see them. Uninstalling the app or clearing its data removes them.</p>
+<h2>Children</h2>
+<p>The app is suitable for general audiences and collects no data from anyone, including children.</p>
+<h2>Changes</h2>
+<p>If this policy ever changes (for example, if ads are added in a future update), the updated policy will be posted at this address.</p>
+<h2>Contact</h2>
+<p>Questions: <a href="mailto:davidgowans@gmail.com">davidgowans@gmail.com</a></p>
+</body></html>
+
+===== FILE: pinochle/assetlinks.json =====
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.djspuzzlepalace.pinochle",
+      "sha256_cert_fingerprints": [
+        "15:BE:0B:D4:15:3B:EA:09:46:F8:E5:41:D5:0A:AF:AD:B4:42:30:8E:50:C3:08:A2:96:F0:9E:B8:55:4D:20:B1",
+        "76:E6:16:C2:41:6E:A4:98:53:38:B5:17:F8:54:7C:A4:8A:ED:38:D4:63:1A:01:E8:A3:33:DA:C7:B3:59:D6:6B"
+      ]
+    }
+  }
+]
+
+===== FILE: pinochle/_redirects =====
+/.well-known/assetlinks.json /assetlinks.json 200
+
+===== FILE: pinochle/manifest.webmanifest =====
+{
+  "name": "Pinochle Seniors: Big Cards",
+  "short_name": "Pinochle",
+  "description": "Pinochle with big readable cards, every meld counted and explained, and an honest random deal. No mid-game ads. Plays offline.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#4a161e",
+  "theme_color": "#31090d",
+  "categories": ["games", "card"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
+
+===== END =====
