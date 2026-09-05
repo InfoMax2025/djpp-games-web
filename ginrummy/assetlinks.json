@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.djspuzzlepalace.ginrummy",
+      "sha256_cert_fingerprints": [
+        "FD:59:7C:70:45:73:C9:C9:CE:B0:DD:0A:8C:54:3F:23:C0:4C:71:95:27:DC:22:E9:7A:62:D5:C7:82:8F:D6:4A",
+        "06:23:1A:7B:24:8A:BF:D1:84:E5:A4:2B:9F:72:B7:9A:7F:CF:C9:F4:9A:B2:BC:3C:49:D3:DE:D6:90:55:5C:C1"
+      ]
+    }
+  }
+]
