@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.djspuzzlepalace.euchre",
+      "sha256_cert_fingerprints": [
+        "44:41:62:1A:75:FF:98:40:5C:0D:B9:4E:8A:96:94:E5:4E:84:54:86:13:EC:A6:2E:B5:5F:75:29:91:96:8E:C4",
+        "D5:B6:DD:5D:A2:26:72:2A:2F:6C:C4:A6:BB:A7:66:F6:99:EA:4F:16:50:D6:08:00:A0:E9:6E:A9:8B:3D:49:46"
+      ]
+    }
+  }
+]
