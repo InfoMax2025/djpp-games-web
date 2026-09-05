@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a4f27">
+<title>Cribbage Seniors: Big Cards</title>
+<meta name="description" content="Cribbage with big readable cards, automatic counting that shows the math, and a fair honest deal. Plays offline.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.png" sizes="any">
+<link rel="apple-touch-icon" href="icon-apple-180.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cribbage">
+<style>
+  :root{
+    --felt1:#118a46; --felt2:#0c6231; --felt3:#083f20;
+    --gold:#f6c945; --goldhi:#ffe08a; --cream:#faf6ea;
+    --red:#c62828; --blk:#1b2733;
+    --panel:rgba(5,28,15,.86);
+    --wood1:#9a6632; --wood2:#7b4e22; --wood3:#5e3a17;
+    --you:#7fd9ff; --opp:#ffb0a0;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;
+    font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--cream);
+    -webkit-user-select:none;user-select:none;touch-action:manipulation;
+    background:
+      radial-gradient(ellipse 120% 90% at 50% 30%, var(--felt1), var(--felt2) 55%, var(--felt3) 100%);}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.5;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");}
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(ellipse 130% 100% at 50% 40%, transparent 55%, rgba(0,0,0,.38) 100%);}
+  #app{position:relative;width:100%;height:100%;z-index:1;}
+
+  /* ===== the wooden cribbage board (top) ===== */
+  #board{position:absolute;top:0;left:0;right:0;z-index:6;padding:10px 12px 24px;
+    background:
+      linear-gradient(180deg, rgba(0,0,0,.28), rgba(0,0,0,.06) 30%, transparent),
+      repeating-linear-gradient(94deg, rgba(0,0,0,.10) 0 3px, transparent 3px 9px, rgba(255,255,255,.05) 9px 11px, transparent 11px 26px),
+      linear-gradient(180deg, var(--wood1), var(--wood2) 55%, var(--wood3));
+    border-bottom:3px solid #3f2610;box-shadow:0 6px 22px rgba(0,0,0,.5);}
+  #board .title{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:7px;}
+  #board .brand{color:var(--gold);font-weight:900;font-size:19px;letter-spacing:1px;text-shadow:0 2px 3px rgba(0,0,0,.55);}
+  #board .sub{font-size:13px;color:#f3e2c0;opacity:.85;font-weight:700;}
+  .lane{display:flex;align-items:center;gap:10px;margin-top:6px;}
+  .lane .who{width:96px;font-size:17px;font-weight:900;letter-spacing:.4px;text-shadow:0 1px 2px rgba(0,0,0,.6);}
+  .lane.you .who{color:var(--you);} .lane.opp .who{color:var(--opp);}
+  .lane .track{position:relative;flex:1;height:26px;border-radius:13px;
+    background:linear-gradient(180deg, rgba(0,0,0,.5), rgba(0,0,0,.28));
+    box-shadow:inset 0 2px 6px rgba(0,0,0,.65), 0 1px 0 rgba(255,255,255,.12);}
+  .track .holes{position:absolute;inset:0;border-radius:13px;overflow:hidden;}
+  .track .holes i{position:absolute;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;
+    background:rgba(0,0,0,.75);box-shadow:0 1px 0 rgba(255,255,255,.12);}
+  .track .mark{position:absolute;top:calc(100% + 3px);font-size:12px;font-weight:800;color:#f3e2c0;opacity:.75;transform:translateX(-50%);}
+  .peg{position:absolute;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;z-index:2;
+    transition:left .9s cubic-bezier(.35,1.3,.4,1);}
+  .peg.front{box-shadow:0 2px 5px rgba(0,0,0,.6), inset 0 -3px 5px rgba(0,0,0,.35), inset 0 2px 3px rgba(255,255,255,.5);}
+  .peg.back{width:13px;height:13px;margin:-6.5px 0 0 -6.5px;opacity:.75;
+    box-shadow:0 1px 3px rgba(0,0,0,.6), inset 0 -2px 4px rgba(0,0,0,.35), inset 0 1px 2px rgba(255,255,255,.4);}
+  .lane.you .peg{background:radial-gradient(circle at 35% 30%, #b9ecff, #3fa9d8 60%, #1f7099);}
+  .lane.opp .peg{background:radial-gradient(circle at 35% 30%, #ffd9cf, #e0745c 60%, #a04630);}
+  .lane .pts{width:64px;text-align:right;font-size:34px;font-weight:900;line-height:1;text-shadow:0 2px 3px rgba(0,0,0,.6);}
+  .lane.you .pts{color:var(--you);} .lane.opp .pts{color:var(--opp);}
+
+  /* ===== opponent card backs ===== */
+  #opp{position:absolute;top:158px;left:50%;transform:translateX(-50%);z-index:3;text-align:center;pointer-events:none;}
+  #opp .name{font-size:16px;font-weight:800;background:var(--panel);border:1px solid rgba(255,255,255,.16);
+    border-radius:20px;padding:5px 16px;display:inline-block;}
+  #opp.turn .name{border-color:var(--gold);color:var(--gold);box-shadow:0 0 16px rgba(246,201,69,.5);}
+  #oppBacks{display:flex;gap:5px;justify-content:center;margin-top:8px;}
+  .cardback{background:
+      radial-gradient(circle at 50% 42%, rgba(255,255,255,.16) 0 14%, transparent 15%),
+      repeating-linear-gradient(45deg, #1d5fa8 0 6px, #174e8c 6px 12px),
+      linear-gradient(135deg,#1d5fa8,#123f72);
+    border:2px solid #d9e4ef;border-radius:7px;box-shadow:0 3px 8px rgba(0,0,0,.45);}
+
+  /* ===== card faces ===== */
+  .card{border-radius:12px;background:linear-gradient(160deg, #fffdf4, var(--cream) 60%, #efe8d6);
+    box-shadow:0 4px 12px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.9);
+    position:relative;display:inline-block;border:1px solid #d8d0bd;}
+  .card .corner{position:absolute;font-weight:900;line-height:.9;}
+  .card .tl{top:7px;left:9px;text-align:center;}
+  .card .br{bottom:7px;right:9px;text-align:center;transform:rotate(180deg);}
+  .card .rank{line-height:.9;} .card .suit{line-height:1;margin-top:-1px;}
+  .card .pip{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);line-height:1;
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,.14));}
+  .card.red{color:var(--red);} .card.blk{color:var(--blk);}
+
+  /* ===== center table area ===== */
+  #center{position:absolute;left:0;right:0;top:33%;z-index:4;text-align:center;pointer-events:none;}
+  #starterWrap{position:absolute;left:14px;top:-6px;text-align:center;display:none;}
+  #starterWrap .lab{font-size:12px;font-weight:900;color:var(--gold);letter-spacing:1px;margin-bottom:4px;text-shadow:0 1px 2px rgba(0,0,0,.6);}
+  #pile{display:flex;justify-content:center;align-items:center;min-height:150px;}
+  #pile .card{margin-left:-34px;}
+  #pile .card:first-child{margin-left:0;}
+  #countWrap{display:none;margin-top:8px;}
+  #countWrap .lab{font-size:16px;font-weight:800;opacity:.85;}
+  #countNum{font-size:52px;font-weight:900;color:var(--gold);line-height:1;text-shadow:0 3px 6px rgba(0,0,0,.55);}
+
+  /* score popup */
+  #pop{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);z-index:12;pointer-events:none;
+    font-size:48px;font-weight:900;color:var(--goldhi);text-align:center;line-height:1.15;max-width:92vw;
+    text-shadow:0 3px 2px rgba(0,0,0,.65), 0 0 26px rgba(246,201,69,.5);
+    opacity:0;}
+  #pop.show{animation:popin 1.6s ease forwards;}
+  @keyframes popin{0%{opacity:0;transform:translate(-50%,-50%) scale(.6);}
+    12%{opacity:1;transform:translate(-50%,-50%) scale(1.06);}
+    22%{transform:translate(-50%,-50%) scale(1);}
+    78%{opacity:1;} 100%{opacity:0;transform:translate(-50%,-58%) scale(1);}}
+
+  /* status line — lives in the flow just above your hand, never overlaps anything */
+  #hint{display:none;width:fit-content;margin:0 auto 10px;
+    font-size:18px;font-weight:800;color:var(--gold);text-align:center;max-width:92vw;
+    background:var(--panel);border:1px solid rgba(246,201,69,.35);border-radius:14px;padding:9px 20px;
+    box-shadow:0 4px 14px rgba(0,0,0,.4);pointer-events:none;}
+
+  /* ===== your hand ===== */
+  #handwrap{position:absolute;left:0;right:0;bottom:10px;z-index:5;}
+  #actions{display:flex;gap:12px;justify-content:center;margin-bottom:10px;pointer-events:none;}
+  #actions:empty{display:none;}
+  .btn{cursor:pointer;border:none;border-radius:16px;font-size:22px;font-weight:900;letter-spacing:.5px;
+    padding:16px 28px;color:#06210f;background:linear-gradient(180deg,#8ceaa8,#37b565);
+    box-shadow:0 6px 16px rgba(20,120,60,.5), inset 0 1px 0 rgba(255,255,255,.6);pointer-events:auto;}
+  .btn:active{transform:scale(.96);}
+  .btn.gold{background:linear-gradient(180deg,#ffe08a,#e5ad2e);color:#241800;box-shadow:0 6px 16px rgba(190,140,30,.5), inset 0 1px 0 rgba(255,255,255,.7);}
+  .btn.ghost{background:rgba(255,255,255,.13);color:var(--cream);border:2px solid rgba(255,255,255,.3);box-shadow:none;}
+  .btn[disabled]{opacity:.4;pointer-events:none;}
+  #youName{display:table;margin:0 auto 8px;
+    font-size:16px;font-weight:800;background:var(--panel);border:1px solid rgba(255,255,255,.16);
+    border-radius:20px;padding:4px 16px;white-space:nowrap;}
+  #handwrap.turn #youName{border-color:var(--gold);color:var(--gold);box-shadow:0 0 16px rgba(246,201,69,.5);}
+  #hand{display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 6px;position:relative;}
+  .handrow{display:flex;justify-content:center;align-items:flex-end;}
+  #hand .card{cursor:default;transition:transform .13s ease, box-shadow .13s ease;position:relative;}
+  #hand.pick .card, #hand.play .card{cursor:pointer;pointer-events:auto;}
+  #hand .card.sel{transform:translateY(-20px);
+    box-shadow:0 10px 22px rgba(0,0,0,.5), 0 0 0 5px var(--gold), 0 0 24px rgba(246,201,69,.65);}
+  #hand .card.dim{opacity:.45;filter:saturate(.5);}
+  @keyframes dealin{from{opacity:0;transform:translateY(28px) scale(.9);}to{opacity:1;transform:none;}}
+  @keyframes playin{from{opacity:.3;transform:translateY(-18px) scale(1.05);}to{opacity:1;transform:none;}}
+  @media (hover:hover) and (pointer:fine){
+    #hand.pick .card:hover, #hand.play .card:hover{transform:translateY(-14px);z-index:60;}
+    #hand .card.sel:hover{transform:translateY(-20px);}
+  }
+  #dwline{text-align:center;font-size:17px;font-weight:800;margin-bottom:6px;color:#e8f4ec;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+
+  /* ===== counting panel (the showpiece) ===== */
+  #countPanel{position:absolute;inset:0;z-index:18;display:none;flex-direction:column;align-items:center;
+    justify-content:flex-start;padding:20px 14px 20px;overflow-y:auto;
+    background:radial-gradient(ellipse at 50% 35%, rgba(8,52,27,.97), rgba(3,22,11,.985));}
+  #cpWho{font-size:30px;font-weight:900;margin:6px 0 2px;letter-spacing:.5px;}
+  #cpWho.you{color:var(--you);} #cpWho.opp{color:var(--opp);} #cpWho.crib{color:var(--gold);}
+  #cpSub{font-size:16px;opacity:.8;font-weight:700;margin-bottom:12px;}
+  #cpCards{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:14px;}
+  #cpLines{width:100%;max-width:560px;}
+  .cpline{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);border-radius:14px;
+    padding:12px 18px;margin:7px 0;opacity:0;transform:translateY(10px);
+    animation:linein .4s ease forwards;}
+  @keyframes linein{to{opacity:1;transform:none;}}
+  .cpline .t{font-size:21px;font-weight:800;text-align:left;}
+  .cpline .p{font-size:26px;font-weight:900;color:var(--gold);white-space:nowrap;}
+  #cpTotal{font-size:46px;font-weight:900;color:var(--goldhi);margin:10px 0 4px;
+    text-shadow:0 3px 3px rgba(0,0,0,.6), 0 0 30px rgba(246,201,69,.45);}
+  #cpZero{font-size:22px;font-weight:800;opacity:.8;margin:8px 0;display:none;}
+  #cpNext{margin-top:10px;}
+
+  /* ===== overlay (title / between hands / win) ===== */
+  #overlay{position:absolute;inset:0;z-index:24;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at 50% 38%, rgba(10,66,33,.97), rgba(3,20,10,.99));text-align:center;padding:22px;overflow-y:auto;}
+  #overlay .kick{font-size:13px;letter-spacing:3px;color:var(--gold);font-weight:800;margin-bottom:8px;}
+  #overlay h1{font-size:clamp(30px,7.5vw,54px);margin:0;font-weight:900;color:#fff;letter-spacing:1px;text-shadow:0 3px 8px rgba(0,0,0,.5);}
+  #overlay h1 .s{color:var(--gold);}
+  #overlay .sub{font-size:clamp(15px,3vw,19px);color:#c9ecd6;margin:10px 0 20px;font-weight:700;}
+  #overlay .how{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:16px;
+    padding:16px 22px;margin-bottom:22px;text-align:left;max-width:600px;}
+  #overlay .how div{margin:9px 0;font-size:clamp(15px,2.8vw,17px);color:#e2f3e8;line-height:1.45;}
+  #overlay .how b{color:var(--gold);}
+  #overlay .foot{margin-top:18px;font-size:12px;color:rgba(255,255,255,.4);}
+  #finalline{display:none;font-size:30px;font-weight:900;margin-bottom:10px;}
+  #resultbox{display:none;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:16px;
+    padding:16px 22px;margin-bottom:20px;max-width:560px;font-size:18px;line-height:1.55;font-weight:600;}
+  #startbtn{cursor:pointer;border:none;border-radius:18px;font-size:26px;font-weight:900;letter-spacing:1px;
+    padding:20px 64px;color:#06210f;background:linear-gradient(180deg,#8ceaa8,#37b565);
+    box-shadow:0 10px 30px rgba(30,150,80,.5), inset 0 2px 0 rgba(255,255,255,.6);}
+  #startbtn:active{transform:scale(.97);}
+  #ver{position:absolute;right:10px;bottom:8px;z-index:6;color:rgba(255,255,255,.4);font-size:11px;pointer-events:none;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="board">
+    <div class="title"><span class="brand">CRIBBAGE</span><span class="sub">first to 121 · every point counted for you</span></div>
+    <div class="lane you"><div class="who">You</div>
+      <div class="track" id="trackYou"><div class="holes"></div></div>
+      <div class="pts" id="ptsYou">0</div></div>
+    <div class="lane opp"><div class="who">Opponent</div>
+      <div class="track" id="trackOpp"><div class="holes"></div></div>
+      <div class="pts" id="ptsOpp">0</div></div>
+  </div>
+
+  <div id="opp"><span class="name">Opponent <span id="oppCribTag"></span></span><div id="oppBacks"></div></div>
+
+  <div id="center">
+    <div id="starterWrap"><div class="lab">STARTER</div><div id="starterFace"></div></div>
+    <div id="pile"></div>
+    <div id="countWrap"><div class="lab">count</div><div id="countNum">0</div></div>
+  </div>
+  <div id="pop"></div>
+
+  <div id="handwrap">
+    <span id="youName">You <span id="youCribTag"></span></span>
+    <div id="hint"></div>
+    <div id="actions"></div>
+    <div id="dwline"></div>
+    <div id="hand"></div>
+  </div>
+
+  <div id="countPanel">
+    <div id="cpWho"></div><div id="cpSub"></div>
+    <div id="cpCards"></div>
+    <div id="cpLines"></div>
+    <div id="cpZero">No points this time.</div>
+    <div id="cpTotal"></div>
+    <div id="actionsCP"><button class="btn gold" id="cpNext">NEXT</button></div>
+  </div>
+
+  <div id="overlay">
+    <div class="kick">DJ'S PUZZLE PALACE · HONEST CARD GAMES</div>
+    <h1>CRIBBAGE <span class="s">♠♥♦♣</span></h1>
+    <div class="sub">Big cards. Every point counted for you, out loud. A fair deal, always.</div>
+    <div id="finalline"></div>
+    <div id="resultbox"></div>
+    <div class="how" id="howBox">
+      <div><b>Goal:</b> race your pegs down the board to <b>121 points</b>.</div>
+      <div><b>Each hand:</b> you get 6 cards — keep 4, send 2 to the <b>crib</b> (a bonus hand the dealer scores).</div>
+      <div><b>The play:</b> take turns laying cards without going over <b>31</b>. Fifteens, pairs and runs score as you go.</div>
+      <div><b>The count:</b> then every hand is <b>counted for you, step by step</b> — fifteen-two, fifteen-four… nothing missed, no math needed.</div>
+      <div><b>Honest:</b> truly random shuffles. The opponent only ever sees its own cards — and every count is shown so you can check it.</div>
+    </div>
+    <button id="startbtn">DEAL</button>
+    <div class="foot">A DJ's Puzzle Palace game</div>
+  </div>
+  <div id="ver">Cribbage Seniors · v1.1</div>
+</div>
+
+<script>
+(function(){
+'use strict';
+function el(id){ return document.getElementById(id); }
+
+/* ================= ENGINE (verified in cribbage-sim.js) ================= */
+var SUIT_SYM=['♠','♥','♦','♣'], SUIT_COLOR=['blk','red','red','blk'];
+var RANKS=['','A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+var GAME_TARGET=121;
+function val(c){ return Math.min(c.r,10); }
+function cardStr(c){ return RANKS[c.r]+SUIT_SYM[c.s]; }
+function cardKey(c){ return c.r+':'+c.s; }
+function makeDeck(){ var d=[]; for(var s=0;s<4;s++)for(var r=1;r<=13;r++)d.push({r:r,s:s}); return d; }
+function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i];a[i]=a[j];a[j]=t; } return a; }
+
+function scoreHand(hand, starter, isCrib){
+  var five=hand.concat([starter]), lines=[], total=0;
+  function add(pts,text){ total+=pts; lines.push({pts:pts,text:text,run:total}); }
+  var n=five.length;
+  for(var mask=1; mask<(1<<n); mask++){
+    var sum=0, combo=[];
+    for(var i=0;i<n;i++) if(mask&(1<<i)){ sum+=val(five[i]); combo.push(cardStr(five[i])); }
+    if(sum===15) add(2,'Fifteen: '+combo.join(' + '));
+  }
+  for(var a=0;a<n;a++) for(var b=a+1;b<n;b++)
+    if(five[a].r===five[b].r) add(2,'Pair: '+cardStr(five[a])+' & '+cardStr(five[b]));
+  var cnt={}; five.forEach(function(c){ cnt[c.r]=(cnt[c.r]||0)+1; });
+  var ranks=Object.keys(cnt).map(Number).sort(function(x,y){return x-y;});
+  var bestLen=0,bestScore=0,bestDesc=''; var i2=0;
+  while(i2<ranks.length){
+    var j=i2; while(j+1<ranks.length && ranks[j+1]===ranks[j]+1) j++;
+    var len=j-i2+1;
+    if(len>=3){ var mult=1,names=[];
+      for(var k=i2;k<=j;k++){ mult*=cnt[ranks[k]]; names.push(RANKS[ranks[k]]); }
+      if(len>bestLen){ bestLen=len; bestScore=len*mult;
+        bestDesc=(mult>1?mult+' runs':'Run')+' of '+len+': '+names.join('-'); } }
+    i2=j+1;
+  }
+  if(bestLen>=3) add(bestScore,bestDesc);
+  var suit=hand[0].s, f4=hand.every(function(c){return c.s===suit;});
+  if(f4){ var f5=(starter.s===suit);
+    if(isCrib){ if(f5) add(5,'Flush: five '+SUIT_SYM[suit]); }
+    else add(f5?5:4,'Flush: '+(f5?'five ':'four ')+SUIT_SYM[suit]); }
+  for(var q=0;q<hand.length;q++)
+    if(hand[q].r===11 && hand[q].s===starter.s) add(1,'Nobs: '+cardStr(hand[q]));
+  return {total:total, lines:lines};
+}
+function pegScore(pile){
+  var lines=[], pts=0;
+  var count=pile.reduce(function(s,c){return s+val(c);},0);
+  if(count===15){ pts+=2; lines.push('Fifteen for 2'); }
+  var n=pile.length, same=1;
+  while(same<n && pile[n-1-same].r===pile[n-1].r) same++;
+  if(same===2){ pts+=2; lines.push('Pair for 2'); }
+  else if(same===3){ pts+=6; lines.push('Three of a kind for 6'); }
+  else if(same===4){ pts+=12; lines.push('Four of a kind for 12'); }
+  var bestRun=0;
+  for(var len=Math.min(7,n); len>=3; len--){
+    var suf=pile.slice(n-len).map(function(c){return c.r;}).sort(function(a,b){return a-b;});
+    var okr=true;
+    for(var i=1;i<suf.length;i++) if(suf[i]!==suf[i-1]+1){ okr=false; break; }
+    if(okr){ bestRun=len; break; }
+  }
+  if(bestRun){ pts+=bestRun; lines.push('Run of '+bestRun+' for '+bestRun); }
+  if(count===31){ pts+=2; lines.push('Thirty-one for 2'); }
+  return {pts:pts, lines:lines, count:count};
+}
+function aiDiscard(hand6, isDealer, deckUnseen){
+  var bestIdx=null, bestVal=-1e9;
+  for(var a=0;a<6;a++) for(var b=a+1;b<6;b++){
+    var keep=[], toss=[hand6[a],hand6[b]];
+    for(var i=0;i<6;i++) if(i!==a&&i!==b) keep.push(hand6[i]);
+    var ev=0;
+    for(var u=0;u<deckUnseen.length;u++) ev+=scoreHand(keep,deckUnseen[u],false).total;
+    ev/=deckUnseen.length;
+    var crib=0;
+    if(toss[0].r===toss[1].r) crib+=2;
+    if(val(toss[0])+val(toss[1])===15) crib+=2;
+    toss.forEach(function(c){ if(c.r===5) crib+=1.5; if(c.r===11) crib+=0.4; });
+    if(Math.abs(toss[0].r-toss[1].r)===1) crib+=0.8;
+    ev+=(isDealer?0.6:-0.8)*crib;
+    if(ev>bestVal){ bestVal=ev; bestIdx=[a,b]; }
+  }
+  return bestIdx;
+}
+function aiPegPlay(handLeft, pile, count){
+  var legal=handLeft.filter(function(c){ return count+val(c)<=31; });
+  if(!legal.length) return null;
+  var best=null, bestScore=-1e9;
+  for(var i=0;i<legal.length;i++){
+    var c=legal[i];
+    var s=pegScore(pile.concat([c])).pts*100;
+    var nc=count+val(c);
+    if(pile.length===0 && c.r===5) s-=30;
+    if(nc===5||nc===21) s-=25;
+    if(pile.length===0 && c.r<=4) s+=6;
+    s+=val(c)*0.1;
+    if(s>bestScore){ bestScore=s; best=c; }
+  }
+  return best;
+}
+
+/* ================= RENDER HELPERS ================= */
+function cardFaceHTML(c){ var col=SUIT_COLOR[c.s], sym=SUIT_SYM[c.s], rk=RANKS[c.r];
+  return '<div class="card '+col+'">'+
+    '<div class="corner tl"><div class="rank">'+rk+'</div><div class="suit">'+sym+'</div></div>'+
+    '<div class="pip">'+sym+'</div>'+
+    '<div class="corner br"><div class="rank">'+rk+'</div><div class="suit">'+sym+'</div></div>'+
+    '</div>'; }
+function buildCard(c,cw){ var ch=Math.round(cw*1.42);
+  var d=document.createElement('div'); d.innerHTML=cardFaceHTML(c); var elc=d.firstChild;
+  elc.style.width=cw+'px'; elc.style.height=ch+'px';
+  var ranks=elc.querySelectorAll('.rank'), suits=elc.querySelectorAll('.suit'), pip=elc.querySelector('.pip');
+  var rf=Math.round(cw*0.31), sf=Math.round(cw*0.27), pf=Math.round(cw*0.54);
+  for(var i=0;i<ranks.length;i++) ranks[i].style.fontSize=rf+'px';
+  for(var j=0;j<suits.length;j++) suits[j].style.fontSize=sf+'px';
+  if(pip) pip.style.fontSize=pf+'px';
+  return elc; }
+
+/* peg board */
+(function initTracks(){
+  ['trackYou','trackOpp'].forEach(function(id){
+    var holes=el(id).querySelector('.holes');
+    for(var i=1;i<=24;i++){ var d=document.createElement('i'); d.style.left=(i/24.2*100)+'%'; holes.appendChild(d); }
+    if(id==='trackOpp') [[30,'30'],[60,'60'],[90,'90'],[121,'121']].forEach(function(m){
+      var mk=document.createElement('div'); mk.className='mark'; mk.textContent=m[1];
+      mk.style.left=(m[0]/121*96+2)+'%'; el(id).appendChild(mk);
+    });
+    ['back','front'].forEach(function(k){
+      var p=document.createElement('div'); p.className='peg '+k; p.style.left='1.5%'; el(id).appendChild(p);
+    });
+  });
+})();
+function movePegs(){
+  [['trackYou',0],['trackOpp',1]].forEach(function(t){
+    var track=el(t[0]), sc=G?G.scores[t[1]]:0, prev=G?G.prevScores[t[1]]:0;
+    var f=track.querySelector('.peg.front'), b=track.querySelector('.peg.back');
+    f.style.left=(Math.min(sc,121)/121*96+2)+'%';
+    b.style.left=(Math.min(prev,121)/121*96+2)+'%';
+  });
+}
+
+/* ================= GAME STATE ================= */
+var G=null;
+var POP_MS=1500;
+function hint(msg){ var h=el('hint'); h.textContent=msg||''; h.style.display=msg?'block':'none'; }
+function pop(text, then){
+  var p=el('pop'); p.innerHTML=text; p.classList.remove('show');
+  void p.offsetWidth; p.classList.add('show');
+  if(then) setTimeout(then, POP_MS);
+}
+function award(p, pts, reason, then){
+  if(G.over || pts<=0){ if(then) then(); return; }
+  G.prevScores[p]=G.scores[p];
+  G.scores[p]+=pts;
+  el('ptsYou').textContent=G.scores[0]; el('ptsOpp').textContent=G.scores[1];
+  movePegs();
+  if(G.scores[p]>=GAME_TARGET){ G.over=true; G.winner=p; }
+  if(reason){ pop((p===0?'<span style="color:var(--you)">You</span>':'<span style="color:var(--opp)">Opponent</span>')+'<br>'+reason, function(){
+      if(G.over){ endGame(); } else if(then) then();
+    }); }
+  else { if(G.over){ endGame(); } else if(then) then(); }
+}
+
+function newGame(){ G={ scores:[0,0], prevScores:[0,0], dealer:Math.floor(Math.random()*2), over:false, winner:-1,
+  hand:null, opp:null, crib:null, starter:null, phase:'idle', sel:[],
+  left:null, pile:null, count:0, lastPlayer:-1, turn:0, deckRest:null };
+  el('ptsYou').textContent='0'; el('ptsOpp').textContent='0'; movePegs(); deal(); }
+
+function deal(){
+  G.dealer=1-G.dealer;
+  var d=shuffle(makeDeck());
+  G.hand=d.slice(0,6).sort(byRank); G.opp=d.slice(6,12);
+  G.deckRest=d.slice(12);
+  G.crib=[]; G.starter=null; G.sel=[]; G.pile=[]; G.count=0; G.lastPlayer=-1;
+  el('overlay').style.display='none';
+  el('countPanel').style.display='none';
+  el('starterWrap').style.display='none';
+  el('countWrap').style.display='none';
+  el('pile').innerHTML='';
+  el('oppCribTag').textContent = G.dealer===1 ? '· their crib' : '';
+  el('youCribTag').textContent = G.dealer===0 ? '· your crib' : '';
+  G.phase='discard';
+  G.dealAnim=true;
+  hint(G.dealer===0 ? 'Pick 2 cards for YOUR crib.' : "Pick 2 cards for the OPPONENT'S crib.");
+  renderAll();
+}
+function byRank(a,b){ return a.r-b.r || a.s-b.s; }
+
+/* ---- discard phase ---- */
+function onCardTap(idx){
+  if(G.phase==='discard'){
+    var k=G.sel.indexOf(idx);
+    if(k>=0) G.sel.splice(k,1);
+    else if(G.sel.length<2) G.sel.push(idx);
+    renderHand(); renderActions();
+  } else if(G.phase==='pegYou'){
+    var c=(G.left?G.left[0]:G.hand)[idx];
+    if(!c || !c._legal) return;
+    // tap-to-lift: first tap raises the card, a second tap on the same card plays it
+    if(G.lift!==idx){ G.lift=idx; renderHand(); hint('Tap '+cardStr(c)+' again to play it.'); return; }
+    G.lift=-1;
+    youPlay(c);
+  }
+}
+function confirmDiscard(){
+  if(G.sel.length!==2) return;
+  var toss=G.sel.map(function(i){ return G.hand[i]; });
+  G.hand=G.hand.filter(function(_,i){ return G.sel.indexOf(i)<0; });
+  G.crib=G.crib.concat(toss);
+  G.sel=[];
+  // opponent discards (sees only its own cards: unseen = 52 minus its 6)
+  var unseen=makeDeck().filter(function(c){ return !G.opp.some(function(o){ return cardKey(o)===cardKey(c); }); });
+  var idx=aiDiscard(G.opp, G.dealer===1, unseen);
+  G.crib=G.crib.concat([G.opp[idx[0]], G.opp[idx[1]]]);
+  G.opp=G.opp.filter(function(_,i){ return i!==idx[0]&&i!==idx[1]; });
+  // cut the starter
+  G.starter=G.deckRest[Math.floor(Math.random()*G.deckRest.length)];
+  var sf=el('starterFace'); sf.innerHTML=''; sf.appendChild(buildCard(G.starter, starterCW()));
+  el('starterWrap').style.display='block';
+  G.phase='cut'; renderAll();
+  if(G.starter.r===11){
+    award(G.dealer, 2, 'His heels — J cut for 2!', startPegging);
+  } else {
+    pop('Starter: '+cardStr(G.starter), startPegging);
+  }
+}
+function starterCW(){ return Math.max(66, Math.min(96, Math.round(Math.min(innerWidth,940)*0.17))); }
+
+/* ---- pegging ---- */
+function startPegging(){
+  if(G.over) return;
+  G.left=[G.hand.slice(), G.opp.slice()];
+  G.pile=[]; G.count=0; G.lastPlayer=-1; G.goSaid=[false,false];
+  el('countWrap').style.display='block';
+  updateCount();
+  var pone=1-G.dealer;
+  hint('');
+  nextPegTurn(pone, true);
+}
+function updateCount(){ el('countNum').textContent=G.count; }
+function renderPile(){
+  var p=el('pile'); p.innerHTML='';
+  var cw=Math.max(72, Math.min(120, Math.round(Math.min(innerWidth,940)*0.21)));
+  G.pile.forEach(function(c,i){ var e=buildCard(c,cw);
+    if(i===G.pile.length-1) e.style.animation='playin .25s ease backwards';
+    p.appendChild(e); });
+}
+function anyLegal(who){ return G.left[who].some(function(c){ return G.count+val(c)<=31; }); }
+function nextPegTurn(who, first){
+  if(G.over) return;
+  if(!G.left[0].length && !G.left[1].length){ finishPegging(); return; }
+  G.turn=who;
+  if(!anyLegal(who)){
+    if(!anyLegal(1-who)){
+      // both stuck: last player pegs go (unless just hit 31 which already reset)
+      var lp=G.lastPlayer;
+      if(lp>=0){
+        var goPts = 1;
+        award(lp, goPts, 'Go — last card for 1', function(){ resetPile(); nextPegTurn(1-lp); });
+      } else { resetPile(); nextPegTurn(1-who); }
+      return;
+    }
+    if(who===0){ hint("You can't play — GO."); setTimeout(function(){ nextPegTurn(1); }, 1100); }
+    else { pop('Opponent says GO', function(){ nextPegTurn(0); }); }
+    return;
+  }
+  if(who===0){
+    G.phase='pegYou'; G.lift=-1;
+    el('handwrap').classList.add('turn'); el('opp').classList.remove('turn');
+    hint('Your turn — tap a card, then tap it again to play it (count stays 31 or less).');
+    renderAll();
+  } else {
+    G.phase='pegOpp';
+    el('opp').classList.add('turn'); el('handwrap').classList.remove('turn');
+    renderAll();
+    setTimeout(function(){
+      var c=aiPegPlay(G.left[1], G.pile, G.count);
+      playCard(1, c);
+    }, first?900:1300);
+  }
+}
+function youPlay(c){
+  G.phase='pegWait';
+  playCard(0, c);
+}
+function playCard(who, c){
+  G.left[who]=G.left[who].filter(function(x){ return cardKey(x)!==cardKey(c); });
+  G.pile.push(c);
+  var ps=pegScore(G.pile);
+  G.count=ps.count;
+  renderPile(); updateCount(); renderAll();
+  G.lastPlayer=who;
+  var after=function(){
+    if(G.over) return;
+    if(G.count===31){ resetPile(); nextPegTurn(1-who); }
+    else nextPegTurn(1-who);
+  };
+  if(ps.pts>0) award(who, ps.pts, ps.lines.join('<br>'), after);
+  else setTimeout(after, who===1?550:150);
+}
+function resetPile(){ G.pile=[]; G.count=0; G.lastPlayer=-1; G.goSaid=[false,false]; renderPile(); updateCount(); }
+function finishPegging(){
+  var lp=G.lastPlayer;
+  var done=function(){ resetPile(); el('countWrap').style.display='none'; startCounting(); };
+  if(lp>=0 && G.count!==0 && G.count!==31){ award(lp, 1, 'Last card for 1', done); }
+  else done();
+}
+
+/* ---- counting (the showpiece) ---- */
+function startCounting(){
+  if(G.over) return;
+  G.phase='count';
+  el('handwrap').classList.remove('turn'); el('opp').classList.remove('turn');
+  var pone=1-G.dealer;
+  var seq=[];
+  seq.push({who:pone, cards:(pone===0?G.hand:G.opp), crib:false,
+    title: pone===0?'Your hand':"Opponent's hand", sub:'Non-dealer counts first'});
+  seq.push({who:G.dealer, cards:(G.dealer===0?G.hand:G.opp), crib:false,
+    title: G.dealer===0?'Your hand':"Opponent's hand", sub:'Dealer counts next'});
+  seq.push({who:G.dealer, cards:G.crib.slice(0,4), crib:true,
+    title:(G.dealer===0?'Your crib':"Opponent's crib"), sub:'The crib goes to the dealer'});
+  runCountSeq(seq, 0);
+}
+function runCountSeq(seq, i){
+  if(G.over) return;
+  if(i>=seq.length){ el('countPanel').style.display='none'; betweenHands(); return; }
+  var st=seq[i];
+  var res=scoreHand(st.cards, G.starter, st.crib);
+  if(window.DJPP && st.who===0){ try{ DJPP.stat(st.crib?'bestCrib':'bestHand', res.total, 'max'); if(!st.crib && res.total===29) DJPP.stat('perfect29',1,'count'); }catch(e){} }
+  showCountPanel(st, res, function(){
+    award(st.who, res.total, null, function(){ runCountSeq(seq, i+1); });
+  });
+}
+function showCountPanel(st, res, done){
+  var cp=el('countPanel'); cp.style.display='flex'; cp.scrollTop=0;
+  var who=el('cpWho'); who.textContent=st.title;
+  who.className = st.crib?'crib':(st.who===0?'you':'opp');
+  el('cpSub').textContent=st.sub+' · starter '+cardStr(G.starter);
+  var cc=el('cpCards'); cc.innerHTML='';
+  var cw=Math.max(64, Math.min(104, Math.floor((Math.min(innerWidth,600)-60)/5)));
+  st.cards.slice().sort(byRank).forEach(function(c){ cc.appendChild(buildCard(c,cw)); });
+  var sc=buildCard(G.starter,cw); sc.style.outline='4px solid var(--gold)'; sc.style.outlineOffset='2px';
+  cc.appendChild(sc);
+  var lines=el('cpLines'); lines.innerHTML='';
+  el('cpZero').style.display= res.lines.length? 'none':'block';
+  el('cpTotal').textContent='';
+  var nextBtn=el('cpNext'); nextBtn.style.display='none';
+  var i=0;
+  function reveal(){
+    if(i<res.lines.length){
+      var L=res.lines[i];
+      var d=document.createElement('div'); d.className='cpline';
+      d.innerHTML='<div class="t">'+L.text+'</div><div class="p">'+(L.pts>0?'…'+L.run:'')+'</div>';
+      lines.appendChild(d);
+      i++;
+      setTimeout(reveal, 950);
+    } else {
+      el('cpTotal').textContent = res.total + (res.total===1?' point':' points');
+      nextBtn.style.display='inline-block';
+      nextBtn.onclick=function(){ done(); };
+    }
+  }
+  setTimeout(reveal, 550);
+}
+function betweenHands(){
+  if(G.over) return;
+  el('overlay').style.display='flex';
+  el('howBox').style.display='none';
+  el('finalline').style.display='block';
+  el('resultbox').style.display='block';
+  el('finalline').textContent='Hand complete';
+  el('finalline').style.color='var(--cream)';
+  el('resultbox').innerHTML='<b style="color:var(--you)">You '+G.scores[0]+'</b> · <b style="color:var(--opp)">Opponent '+G.scores[1]+'</b> — first to 121.'+
+    '<br>Next deal: '+(G.dealer===1?'YOUR crib':"opponent's crib")+'.';
+  el('startbtn').textContent='NEXT HAND';
+  el('startbtn').onclick=function(){ el('finalline').style.display='none'; el('resultbox').style.display='none'; deal(); };
+}
+function endGame(){
+  G.phase='over';
+  var youWin=G.winner===0;
+  el('countPanel').style.display='none';
+  el('overlay').style.display='flex';
+  el('howBox').style.display='none';
+  el('finalline').style.display='block';
+  el('resultbox').style.display='block';
+  el('finalline').textContent= youWin? '🏆 YOU WIN!' : 'Opponent wins';
+  el('finalline').style.color= youWin? 'var(--gold)':'var(--opp)';
+  var skunk=(G.scores[1-G.winner]<91)?' — a skunk!':'';
+  el('resultbox').innerHTML='<b>Final:</b> You '+G.scores[0]+' · Opponent '+G.scores[1]+skunk;
+  el('startbtn').textContent='PLAY AGAIN';
+  el('startbtn').onclick=function(){ newGame(); };
+  if(window.DJPP){ try{ DJPP.record({won:youWin, you:G.scores[0], opp:G.scores[1],
+    extra:{ skunksGiven: youWin && G.scores[1]<91, skunksTaken: !youWin && G.scores[0]<91 }}); }catch(e){} }
+}
+
+/* ================= RENDER ================= */
+function renderOpp(){
+  var n=G.opp?((G.phase==='discard')?6:(G.left?G.left[1].length:G.opp.length)):0;
+  var bw=Math.max(26, Math.min(40, Math.floor((Math.min(innerWidth,520)-40)/Math.max(n,1))-4));
+  var bh=Math.round(bw*1.42), s='';
+  for(var i=0;i<n;i++) s+='<div class="cardback" style="width:'+bw+'px;height:'+bh+'px"></div>';
+  el('oppBacks').innerHTML=s;
+}
+function renderHand(){
+  var h=el('hand');
+  h.querySelectorAll('.handrow').forEach(function(r){ r.remove(); });
+  var cards=(G.phase==='discard')?G.hand:(G.left?G.left[0]:G.hand);
+  if(!cards) return;
+  var n=cards.length;
+  h.classList.toggle('pick', G.phase==='discard');
+  h.classList.toggle('play', G.phase==='pegYou');
+  var rows=(n>4)?[[0,3],[3,n]]:[[0,n]];
+  var avail=Math.min(innerWidth,940)-16;
+  // vertical budget: everything must fit between the opponent's cards and the bottom edge
+  var oppB=el('opp').getBoundingClientRect().bottom;
+  var nonH=el('youName').offsetHeight+8+26;
+  var hintEl=el('hint');
+  if(hintEl.style.display!=='none' && hintEl.textContent) nonH+=hintEl.offsetHeight+10;
+  if(G.phase==='discard') nonH+=80;
+  var budgetH=innerHeight-12-(oppB+8)-nonH;
+  var rowH=Math.floor((budgetH-8*(rows.length-1))/rows.length);
+  var maxCWH=Math.max(64, Math.floor(rowH/1.42));
+  rows.forEach(function(rg){
+    var a=rg[0], b=rg[1], m=b-a;
+    var MAXW=176, cw=Math.min(MAXW, Math.floor(avail/m)-10, maxCWH);
+    var row=document.createElement('div'); row.className='handrow';
+    for(var i=a;i<b;i++){ (function(idx,c){
+      var elc=buildCard(c,cw);
+      elc.style.margin='0 5px';
+      if(G.dealAnim) elc.style.animation='dealin .5s cubic-bezier(.25,.9,.3,1) '+(idx*80)+'ms backwards';
+      if(G.phase==='discard' && G.sel.indexOf(idx)>=0) elc.classList.add('sel');
+      if(G.phase==='pegYou'){
+        c._legal = (G.count+val(c)<=31);
+        if(!c._legal) elc.classList.add('dim');
+        else if(G.lift===idx) elc.classList.add('sel');
+      }
+      elc.onclick=function(){ onCardTap(idx); };
+      row.appendChild(elc);
+    })(i, cards[i]); }
+    h.appendChild(row);
+  });
+  G.dealAnim=false;
+  var dw=el('dwline');
+  if(G.phase==='discard') dw.textContent='Tap 2 cards to send to the crib ('+G.sel.length+'/2)';
+  else dw.textContent='';
+}
+function renderActions(){
+  var a=el('actions'); a.innerHTML='';
+  if(G.phase==='discard'){
+    var b=document.createElement('button'); b.className='btn gold'; b.textContent='SEND TO CRIB';
+    b.disabled=(G.sel.length!==2);
+    b.onclick=confirmDiscard; a.appendChild(b);
+  }
+}
+function renderAll(){ renderOpp(); renderHand(); renderActions(); }
+window.addEventListener('resize', function(){ if(G) renderAll(); });
+el('startbtn').onclick=function(){ newGame(); };
+
+/* test hook */
+window.__CRIB={ get G(){return G;}, newGame:newGame, deal:deal, scoreHand:scoreHand, pegScore:pegScore,
+  tap:onCardTap, confirmDiscard:confirmDiscard, endGame:endGame, award:award,
+  cpNext:function(){ var b=el('cpNext'); if(b && b.style.display!=='none'){ b.onclick(); return true; } return false; },
+  state:function(){ return {phase:G?G.phase:'none', scores:G?G.scores.slice():null,
+    hand:G&&G.hand?G.hand.length:0, left:G&&G.left?[G.left[0].length,G.left[1].length]:null,
+    count:G?G.count:0, over:G?G.over:false,
+    overlay:el('overlay').style.display!=='none', countPanel:el('countPanel').style.display!=='none'}; } };
+})();
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+window.DJPP_CONFIG={ game:'cribbage', title:'Cribbage', pkg:'com.djspuzzlepalace.cribbage', team:false,
+  extras:[ {key:'bestHand',label:'Biggest hand counted'}, {key:'bestCrib',label:'Biggest crib'},
+           {key:'perfect29',label:'Perfect 29 hands'}, {key:'skunksGiven',label:'Skunks given'}, {key:'skunksTaken',label:'Skunks taken'} ] };
+</script>
+<script src="djpp-kit.js" defer></script>
+</body>
+</html>

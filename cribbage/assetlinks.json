@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.djspuzzlepalace.cribbage",
+      "sha256_cert_fingerprints": [
+        "96:B0:55:7A:43:D8:03:93:1A:CF:12:EC:D7:08:49:41:14:48:5A:5A:3C:21:36:59:06:25:03:40:2F:88:E5:8C",
+        "80:A7:A0:AF:E9:11:5D:AE:1D:57:BA:8F:C7:FF:D8:F6:07:4D:74:3A:D1:7E:A0:35:65:25:23:61:3C:50:E2:9C"
+      ]
+    }
+  }
+]
