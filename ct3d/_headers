@@ -1,0 +1,22 @@
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/index.html
+  Cache-Control: no-cache
+
+/djpp-board.js
+  Cache-Control: no-cache
+
+/
+  Cache-Control: no-cache
+
+/manifest.webmanifest
+  Cache-Control: no-cache
+
+/assetlinks.json
+  Cache-Control: no-cache
+  Content-Type: application/json
+
+/.well-known/assetlinks.json
+  Cache-Control: no-cache
+  Content-Type: application/json

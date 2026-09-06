@@ -1,5 +1,5 @@
-var CACHE='tc3d-v1-30';
-var ASSETS=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./icon-maskable-512.png','./apple-touch-icon.png','./favicon.png'];
+var CACHE='tc3d-v1-31';
+var ASSETS=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./icon-maskable-512.png','./apple-touch-icon.png','./favicon.png','./djpp-board.js'];
 self.addEventListener('install',function(e){self.skipWaiting();
   e.waitUntil(caches.open(CACHE).then(function(c){
     /* add individually: one bad asset must not wedge the whole install */

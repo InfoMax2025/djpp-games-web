@@ -55,6 +55,8 @@ button:disabled{cursor:default;}
 </head>
 <body>
 <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}</script>
+<script>window.DJPP_CONFIG={game:'ct3d',title:'Control Tower 3D',board:{metric:'score',unit:'pts',theme:{bg:'#070b12f5',card:'#0e1622',border:'#2a3a4d',text:'#e9eef5',title:'#e9eef5',accent:'#f2c14e',accent2:'#5cc8ff',onAccent:'#04121a',accentBtn:'#f2c14e',btn:'#0e1622',meBg:'rgba(242,193,78,.14)',muted:'#7f8fa2',font:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif",scale:.85}}};</script>
+<script src="djpp-board.js" defer></script>
 <div id="tw-wrap" style="position:relative;width:100vw;height:100vh;overflow:hidden;background:#8fb8de;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#e9eef5;user-select:none;">
   <div id="tw-frame" style="position:absolute;inset:0;pointer-events:none;z-index:5;box-shadow:inset 0 0 0 12px #1c2430, inset 0 0 90px 24px rgba(0,0,0,.4);"></div>
   <div id="tw-topbar">
@@ -141,9 +143,10 @@ button:disabled{cursor:default;}
       <div style="display:flex;gap:10px;margin-bottom:12px;">
         <button id="tc-arc" class="tc-big" style="flex:1;background:#b48fe0;">LEVELS<br><span style="font-weight:600;font-size:10px;">8 levels &middot; timed, then by operations</span></button>
       </div>
-      <div style="display:flex;gap:10px;justify-content:center;margin-bottom:16px;">
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:16px;">
         <button id="tc-dusk" style="border:1px solid #2a3a4d;background:#0e1622;color:#e9eef5;border-radius:10px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;">Setting: Day</button>
-        <button id="tc-showscores" style="border:1px solid #2a3a4d;background:#0e1622;color:#f2c14e;border-radius:10px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;">Top 100 Scores</button>
+        <button id="tc-showscores" style="border:1px solid #2a3a4d;background:#0e1622;color:#f2c14e;border-radius:10px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;">My Top 100</button>
+        <button id="tc-board" style="border:1px solid #f2c14e66;background:#0e1622;color:#f2c14e;border-radius:10px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;">Shared Top 10</button>
         <button id="tc-comms" style="border:1px solid #2a3a4d;background:#0e1622;color:#a8f0c4;border-radius:10px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;">Voice: On</button>
       </div>
       <div id="tc-best" style="font-size:13px;color:#f2c14e;margin-bottom:14px;">&nbsp;</div>
@@ -155,7 +158,7 @@ button:disabled{cursor:default;}
         Departures taxi to the hold-short line on their own &mdash; the runway must be clear (departures airborne) when an arrival crosses the threshold.<br>
         <b>Keys:</b> 1/2/3 clear &middot; G go-around &middot; B base &middot; T takeoff &middot; C continue &middot; W wave off &middot; P pause
       </div>
-      <div style="font-size:10px;opacity:.4;margin-top:14px;">A DJ's Puzzle Palace game &middot; rules per FAA Order JO 7110.65BB &middot; v1.3</div>
+      <div style="font-size:10px;opacity:.4;margin-top:14px;">A DJ's Puzzle Palace game &middot; rules per FAA Order JO 7110.65BB &middot; v1.4</div>
     </div>
   </div>
 
@@ -163,6 +166,7 @@ button:disabled{cursor:default;}
     <div style="width:min(420px,92%);text-align:center;background:#0e1622;border:1px solid #2a3a4d;border-radius:16px;padding:26px;">
       <div style="font-size:13px;letter-spacing:3px;color:#5cc8ff;">SHIFT COMPLETE</div>
       <div id="tc-grade" style="font-size:72px;font-weight:900;color:#f2c14e;margin:4px 0;">A</div>
+      <div id="tc-shared" style="font-size:12px;color:#f2c14e;margin-bottom:4px;display:none;"></div>
       <div id="tc-rank" style="font-size:12px;color:#5cc8ff;margin-bottom:4px;">&nbsp;</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;font-size:14px;text-align:left;margin:12px 0 16px;">
         <span style="opacity:.6;">Score</span><b id="tc-sscore" style="text-align:right;">0</b>
@@ -1256,7 +1260,9 @@ button:disabled{cursor:default;}
       var SR=saveScore(score,grade);var L=SR.L;var hsm='';for(var li=0;li<Math.min(8,L.length);li++)hsm+='<div style="display:flex;justify-content:space-between;opacity:.85"><span>'+(li+1)+'. '+L[li].s+' pts · '+L[li].g+'</span><span>'+(L[li].m||'')+' · '+L[li].d+'</span></div>';
       el('tc-hs').innerHTML=hsm||'<div style="opacity:.6">—</div>';
       el('tc-rank').textContent=(SR.rank>0&&SR.rank<=100)?('Ranked #'+SR.rank+' of '+L.length+' all-time shifts'):'Outside the top 100 — keep working the position';
-      recordShift(grade);maybeRate(grade);el('tc-again').textContent='SAME SHIFT AGAIN';el('tc-end').style.display='flex';sfx('ok');}
+      recordShift(grade);maybeRate(grade);shareShift(score);el('tc-again').textContent='SAME SHIFT AGAIN';el('tc-end').style.display='flex';sfx('ok');}
+    function shareShift(sc){var sh=el('tc-shared');if(!(window.DJPPBoard&&DJPPBoard.joined())){sh.style.display='none';return;}sh.style.display='';sh.textContent='Shared Top 10: sending your score\u2026';
+      DJPPBoard.record({score:sc}).then(function(info){if(info&&info.total)sh.textContent='Shared Top 10: #'+info.rank+' of '+info.total+' this week';else if(DJPPBoard.joined()&&DJPPBoard._state().pending.length)sh.textContent='Shared Top 10: saved here \u2014 goes up when you are back online';else sh.textContent=DJPPBoard.joined()?'Shared Top 10: score saved':'Shared Top 10: you are no longer on the board';});}
     function togglePause(){if(!running)return;paused=!paused;el('tc-pause').textContent=paused?'▶':'II';el('tc-quit').style.display=paused?'':'none';if(paused){flash('PAUSED','press P or ▶ to resume · MENU saves your shift','#4f9fe0');saveShift();}}
     el('tc-easy').onclick=function(){startShift('easy');};
     el('tc-norm').onclick=function(){startShift('normal');};
@@ -1274,7 +1280,8 @@ button:disabled{cursor:default;}
       for(var si=0;si<L.length;si++)out+='<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #1b2634;'+(si<3?'color:#f2c14e;':'opacity:.85;')+'"><span>'+(si+1)+'. '+L[si].s+' pts · '+L[si].g+'</span><span>'+(L[si].m||'')+' · '+L[si].d+'</span></div>';
       el('tc-slist').innerHTML=out||'<div style="opacity:.6;padding:16px 0;">No shifts logged yet — work one.</div>';
       el('tc-scores').style.display='flex';}
-    el('tc-showscores').onclick=function(){showScores();sfx('click');};
+    el('tc-showscores').onclick=function(){showScores();sfx('click');}
+    el('tc-board').onclick=function(){sfx('click');if(window.DJPPBoard){DJPPBoard.open();}else{var s=document.createElement('script');s.src='djpp-board.js';s.onload=function(){if(window.DJPPBoard)DJPPBoard.open();};document.head.appendChild(s);}};;
     el('tc-sback').onclick=function(){el('tc-scores').style.display='none';sfx('click');};
     document.addEventListener('keydown',function(e){var k=e.key.toLowerCase();
       if(k==='p'){togglePause();return;}
