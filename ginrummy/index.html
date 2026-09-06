@@ -117,14 +117,15 @@
     background:rgba(6,30,18,.78);border-radius:12px;padding:8px 18px;pointer-events:none;min-height:0;}
 
   /* overlay */
-  #overlay{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  #overlay{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
     background:radial-gradient(ellipse at 50% 40%,rgba(10,60,30,.96),rgba(3,16,9,.98));text-align:center;padding:22px;overflow-y:auto;}
+  #overlay>*:first-child{margin-top:auto;} #overlay>*:last-child{margin-bottom:auto;} /* centers when short, scrolls from the top when tall */
   #overlay .kick{font-size:12px;letter-spacing:3px;color:var(--gold);font-weight:800;margin-bottom:8px;}
   #overlay h1{font-size:clamp(28px,7vw,50px);margin:0;font-weight:900;color:#fff;letter-spacing:1px;}
   #overlay h1 .s{color:var(--gold);}
   #overlay .sub{font-size:clamp(13px,2.6vw,16px);color:#bfe6cd;margin:8px 0 20px;font-weight:600;}
   #overlay .how{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;
-    padding:14px 20px;margin-bottom:22px;text-align:left;max-width:560px;}
+    padding:14px 20px;margin:22px 0 4px;text-align:left;max-width:560px;}
   #overlay .how div{margin:7px 0;font-size:clamp(13px,2.5vw,15px);color:#d9efe0;}
   #overlay .how b{color:var(--gold);}
   #overlay .foot{margin-top:18px;font-size:11px;color:rgba(255,255,255,.35);}
@@ -169,7 +170,7 @@
     <div id="dwline"></div>
     <div id="hand"></div>
   </div>
-  <div id="ver">Gin Rummy for Seniors · v1.1</div>
+  <div id="ver">Gin Rummy for Seniors · v1.2</div>
 
   <div id="overlay">
     <div class="kick">DJ'S PUZZLE PALACE · HONEST CARD GAMES</div>
@@ -178,15 +179,15 @@
     <div id="finalline"></div>
     <div id="revealbox"></div>
     <div id="resultbox"></div>
+    <button id="startbtn">DEAL</button>
     <div class="how" id="howBox">
       <div><b>Goal:</b> be first to <b>100 points</b> over several hands.</div>
       <div><b>Each turn:</b> take one card from the <b>stock</b> or <b>discard</b> pile, then tap one card to throw away. That's the whole turn.</div>
       <div><b>Melds stay in your hand:</b> runs (7♥8♥9♥) and sets (three of a kind) are kept — we outline them in gold and leave them out of your deadwood. You don't play them; they lay down when you knock.</div>
       <div><b>Deadwood:</b> the points in your leftover, un-melded cards (face cards = 10, ace = 1). We total it for you.</div>
       <div><b>Knock:</b> when your deadwood is <b>10 or less</b> you can knock to end the hand. <b>Gin</b> = every card melded (0 deadwood) for a bonus.</div>
-      <div><b>Honest:</b> the shuffle is truly random and the opponent only sees what you see — no peeking, no rigged hands, ads only between games.</div>
+      <div><b>Honest:</b> the shuffle is truly random and the opponent only sees what you see — no peeking, no rigged hands, no ads.</div>
     </div>
-    <button id="startbtn">DEAL</button>
     <div class="foot">A DJ's Puzzle Palace game</div>
   </div>
 </div>
@@ -331,6 +332,8 @@ function stepOffer(){
   }
 }
 function youTakeUpcard(take){
+  if(G.phase!=='offerYou') return;           // a second tap (or double-tap) while the opponent is thinking must not run the offer twice
+  G.phase='offerWait'; renderActions(); el('pileDiscard').classList.remove('pick');
   var top=G.discard[G.discard.length-1];
   if(take){ G.hand.push(G.discard.pop()); G.forbidden=top; G.drewFrom='discard'; G.drawnCard=top; sortHand();
     G.phase='discard'; G.lift=null; G.turn=0; hint('Your turn — tap a card to discard.'); el('opp').classList.remove('turn'); renderAll(); }
