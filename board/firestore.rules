@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- shared Top 10 boards: one document per player per game ----------
+    // boards/{game}/players/{uid}
+    //   name     nickname shown on the board (2-16 chars, letters/digits/space/_ . ' -)
+    //   wins     lifetime wins counted from the day the player joined   (card games)
+    //   streak   current win streak            best   best win streak
+    //   games    games finished
+    //   score    best shift score                                           (Control Tower 3D)
+    //   wk       ISO week id, e.g. 2026-W36    wkWins / wkBest / wkStreak / wkScore   this week's numbers
+    //   t        server time of the last write
+    function signedIn() { return request.auth != null; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+    function cleanName(n) {
+      return n is string && n.size() >= 2 && n.size() <= 16
+        && n.matches("^[A-Za-z0-9][A-Za-z0-9 _.'\\-]*$")
+        && !n.lower().matches('.*(fuck|shit|cunt|nigg|fagg|bitch|dick|cock|pussy|asshole|whore|slut|retard|nazi|hitler|rape|penis|vagina|kike|spic|chink).*');
+    }
+    function isInt(v, lo, hi) { return v is int && v >= lo && v <= hi; }
+    function goodShape(d) {
+      return d.keys().hasOnly(['name','wins','streak','best','games','score','wk','wkWins','wkBest','wkStreak','wkScore','t'])
+        && d.keys().hasAll(['name','wins','streak','best','games','score','wk','wkWins','wkBest','wkStreak','wkScore','t'])
+        && cleanName(d.name)
+        && isInt(d.wins, 0, 1000000) && isInt(d.streak, 0, 1000000) && isInt(d.best, 0, 1000000)
+        && isInt(d.games, 0, 1000000) && isInt(d.score, 0, 10000000)
+        && d.wk is string && d.wk.matches('^[0-9]{4}-W[0-9]{2}$')
+        && isInt(d.wkWins, 0, 1000000) && isInt(d.wkBest, 0, 1000000) && isInt(d.wkStreak, 0, 1000000) && isInt(d.wkScore, 0, 10000000)
+        && d.t == request.time
+        && d.streak <= d.wins && d.best <= d.wins && d.wins <= d.games
+        && d.wkWins <= d.wins && d.wkBest <= d.wkWins && d.wkStreak <= d.wkWins && d.wkScore <= d.score;
+    }
+    // the very first write may carry one finished game at most: the board counts from the day you join
+    function freshStart(d) {
+      return d.wins <= 1 && d.games <= 1 && d.streak <= 1 && d.best <= 1 && d.wkWins <= 1 && d.wkBest <= 1 && d.wkStreak <= 1
+        && d.score <= 10000000 && d.wkScore <= d.score;
+    }
+    // every later write records at most one more game / one more win, never less than before
+    function oneStep(n, o) {
+      return n.games >= o.games && n.games <= o.games + 1
+        && n.wins >= o.wins && n.wins <= o.wins + 1
+        && n.best >= o.best && n.best <= o.best + 1
+        && n.streak <= o.streak + 1
+        && n.score >= o.score
+        && (n.wins == o.wins || request.time > o.t + duration.value(20, 's'))    // a game cannot be won every 20 seconds
+        && (
+             (n.wk == o.wk && n.wkWins >= o.wkWins && n.wkWins <= o.wkWins + 1 && n.wkBest >= o.wkBest && n.wkBest <= o.wkBest + 1
+                            && n.wkStreak <= o.wkStreak + 1 && n.wkScore >= o.wkScore)
+          || (n.wk != o.wk && n.wkWins <= 1 && n.wkBest <= 1 && n.wkStreak <= 1)      // a new week starts from zero
+           );
+    }
+    match /boards/{game}/players/{uid} {
+      allow read: if true;
+      allow create: if isOwner(uid) && game.matches('^[a-z0-9]{2,20}$') && goodShape(request.resource.data) && freshStart(request.resource.data);
+      allow update: if isOwner(uid) && goodShape(request.resource.data) && oneStep(request.resource.data, resource.data);
+      allow delete: if isOwner(uid);
+    }
+
+    // ---------- nickname registry, one per game: keeps names unique (lower-cased) ----------
+    // boards/{game}/names/{lowerName}  { uid }
+    match /boards/{game}/names/{lower} {
+      allow read: if true;
+      allow create: if signedIn() && game.matches('^[a-z0-9]{2,20}$')
+                    && request.resource.data.keys().hasOnly(['uid']) && request.resource.data.uid == request.auth.uid
+                    && lower == lower.lower() && lower.size() >= 2 && lower.size() <= 16;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+      allow update: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
