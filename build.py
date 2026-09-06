@@ -7,13 +7,13 @@ import json, pathlib, sys, re
 
 ROOT = pathlib.Path(__file__).parent
 GAMES = {
-    'cribbage': {'title': 'Cribbage Seniors: Big Cards', 'cache': 'crib-v2-2',
+    'cribbage': {'title': 'Cribbage Seniors: Big Cards', 'cache': 'crib-v2-3',
                  'icons': ['./icon-192.png','./icon-512.png','./icon-maskable-512.png','./favicon.png','./icon-apple-180.png']},
-    'euchre':   {'title': 'Euchre for Seniors - Big Cards', 'cache': 'euchre-v2-2',
+    'euchre':   {'title': 'Euchre for Seniors - Big Cards', 'cache': 'euchre-v2-3',
                  'icons': ['./icon-192.png','./icon-512.png','./icon-maskable-512.png','./favicon.png','./icon-apple-180.png']},
-    'ginrummy': {'title': 'Gin Rummy Seniors: Big Cards', 'cache': 'gin-v2-2',
+    'ginrummy': {'title': 'Gin Rummy Seniors: Big Cards', 'cache': 'gin-v2-3',
                  'icons': ['./icon-192.png','./icon-512.png','./icon-maskable-512.png','./favicon.png','./icon-apple-180.png']},
-    'pinochle': {'title': 'Pinochle Seniors: Big Cards', 'cache': 'pin-v2-2',
+    'pinochle': {'title': 'Pinochle Seniors: Big Cards', 'cache': 'pin-v2-3',
                  'icons': ['./icon-192.png','./icon-512.png','./icon-maskable-512.png','./favicon.png','./icon-apple-180.png']},
 }
 
