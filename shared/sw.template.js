@@ -15,6 +15,8 @@ self.addEventListener('fetch',function(e){
   /* never intercept the worker itself - a cached sw.js can never be replaced */
   if(url.pathname==='/sw.js')return;
   if((req.mode==='navigate')||(req.destination==='document')){
+    /* other pages (privacy.html) go straight to the network and are never cached as the app */
+    if(url.pathname!=='/'&&url.pathname!=='/index.html')return;
     /* network-first for the page so a new deploy lands on the next load */
     e.respondWith(fetch(req).then(function(resp){
       var cp=resp.clone();caches.open(CACHE).then(function(c){c.put('./index.html',cp);});return resp;})
