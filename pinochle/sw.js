@@ -1,5 +1,5 @@
 /* Pinochle Seniors: Big Cards — service worker (network-first for the page, versioned cache for assets) */
-var CACHE='pin-v2-0';
+var CACHE='pin-v2-1';
 var ASSETS=["./", "./index.html", "./manifest.webmanifest", "./djpp-kit.js", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png", "./favicon.png", "./icon-apple-180.png"];
 self.addEventListener('install',function(e){self.skipWaiting();
   e.waitUntil(caches.open(CACHE).then(function(c){

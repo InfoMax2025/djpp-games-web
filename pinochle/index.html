@@ -176,8 +176,9 @@
   .btn:active{transform:scale(.96);}
 
   /* ===== overlay ===== */
-  #overlay{position:absolute;inset:0;z-index:24;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  #overlay{position:absolute;inset:0;z-index:24;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
     background:radial-gradient(ellipse at 50% 38%, rgba(70,20,28,.97), rgba(18,4,7,.99));text-align:center;padding:22px;overflow-y:auto;}
+  #overlay>*:first-child{margin-top:auto;} #overlay>*:last-child{margin-bottom:auto;} /* centers when short, scrolls from the top when tall */
   #overlay .kick{font-size:12px;letter-spacing:4px;color:var(--gold);font-weight:800;margin-bottom:10px;}
   #overlay h1{font-family:Georgia,'Times New Roman',serif;font-size:clamp(34px,8.4vw,58px);margin:0;font-weight:700;color:#fff;
     letter-spacing:2px;text-shadow:0 3px 10px rgba(0,0,0,.6);}
@@ -189,7 +190,7 @@
   #overlay .deco span{position:absolute;left:50%;top:0;transform:translateX(-50%);color:var(--gold);font-size:13px;}
   #overlay .sub{font-size:clamp(15px,3vw,19px);color:#f0dfd2;margin:4px 0 18px;font-weight:700;}
   #overlay .how{background:rgba(255,255,255,.05);border:1px solid rgba(224,181,107,.3);border-radius:15px;
-    padding:15px 20px;margin-bottom:20px;text-align:left;max-width:600px;
+    padding:15px 20px;margin:20px 0 4px;text-align:left;max-width:600px;
     box-shadow:inset 0 0 0 3px rgba(0,0,0,.2), inset 0 0 0 4px rgba(224,181,107,.14);}
   #overlay .how div{margin:8px 0;font-size:clamp(15px,2.8vw,17px);color:#f4e9de;line-height:1.45;}
   #overlay .how b{color:var(--goldhi);}
@@ -200,13 +201,22 @@
   #startbtn{font-size:25px;padding:19px 60px;border-radius:17px;}
   #ver{position:absolute;right:10px;bottom:8px;z-index:6;color:rgba(255,255,255,.35);font-size:11px;pointer-events:none;}
   #hand .card.lifted{transform:translateY(-22px);box-shadow:0 10px 22px rgba(0,0,0,.5),0 0 0 5px var(--gold,#f6c945),0 0 24px rgba(246,201,69,.6);}
+  /* v1.2 options row + card passing */
+  #optsRow{display:flex;flex-direction:column;gap:8px;align-items:center;margin:0 0 18px;}
+  .optl{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;font-size:15px;font-weight:800;color:#f0dfd2;}
+  .optl span{min-width:120px;text-align:right;}
+  .seg{display:inline-flex;border:2px solid rgba(224,181,107,.45);border-radius:30px;overflow:hidden;background:rgba(0,0,0,.25);}
+  .seg button{border:none;background:transparent;color:#f4e9de;font-size:15px;font-weight:800;padding:8px 16px;cursor:pointer;min-width:58px;}
+  .seg button.on{background:linear-gradient(180deg,#f6dda2,#c9964e);color:#2a1600;}
+  #passBtn{display:none;font-size:18px;padding:10px 26px;margin:0 auto 6px;border-radius:13px;}
+  #passBtn:disabled{opacity:.45;}
 </style>
 </head>
 <body>
 <div id="app">
   <div id="markL">♦</div><div id="markR">♠</div>
   <div id="board">
-    <div class="title"><span class="brand">PINOCHLE</span><span class="sub">for seniors · first team to 150 · every meld explained</span></div>
+    <div class="title"><span class="brand">PINOCHLE</span><span class="sub" id="boardSub">for seniors · first team to 150 · every meld explained</span></div>
     <div id="plaques">
       <div class="plaque us" id="plaqueUs"><div class="who">YOU &amp; PARTNER</div>
         <div class="score" id="scoreUs">0</div><div class="stat" id="statUs">meld — · counters —</div></div>
@@ -229,6 +239,7 @@
   <div id="handwrap">
     <span id="youName">You <span id="bcS"></span></span>
     <div id="hint"></div>
+    <button class="btn" id="passBtn">PASS 4 CARDS</button>
     <div id="hand"></div>
   </div>
 
@@ -262,17 +273,24 @@
     <div class="sub">Big cards. Every meld counted for you. An honest deal, always.</div>
     <div id="finalline"></div>
     <div id="resultbox"></div>
+    <div id="optsRow">
+      <div class="optl"><span>Scoring</span><div class="seg" data-key="scoring"><button data-v="150">to 150</button><button data-v="1500">to 1500</button></div></div>
+      <div class="optl"><span>Stuck dealer</span><div class="seg" data-key="stuck"><button data-v="on">On</button><button data-v="off">Off</button></div></div>
+      <div class="optl"><span>Pass 4 cards</span><div class="seg" data-key="pass"><button data-v="on">On</button><button data-v="off">Off</button></div></div>
+      <div class="optl"><span>Bid help</span><div class="seg" data-key="help"><button data-v="on">On</button><button data-v="off">Off</button></div></div>
+    </div>
+    <button class="btn" id="startbtn">DEAL</button>
     <div class="how" id="howBox">
-      <div><b>Teams:</b> you and your partner against West &amp; East. First team to <b>150 points</b> wins.</div>
+      <div><b>Teams:</b> you and your partner against West &amp; East. First team to <b>150 points</b> wins (<b>1500</b> with classic scoring, where every meld and counter is worth ten times as much).</div>
       <div><b>The auction:</b> bid for the right to name trump (minimum 20). Your team must reach the bid with <b>meld + counters</b> — or lose the bid.</div>
+      <div><b>Options:</b> <b>Stuck dealer</b> — if three players pass, the dealer must bid the minimum (turn it off to throw the hand in instead). <b>Pass 4 cards</b> — the bidder's partner passes four cards over and gets four back before meld. <b>Bid help</b> — shows what your hand is worth and marks the suggested bid and trump.</div>
       <div><b>Meld:</b> runs, marriages, aces around, the pinochle (J♦ &amp; Q♠)… <b>all counted for you and explained</b>, every hand.</div>
       <div><b>The play:</b> follow suit and beat the best card when you can. Aces, tens and kings you capture are <b>counters</b> — 25 in every hand.</div>
       <div><b>Honest:</b> a truly random deal, verified across 720,000 audited plays. No peeking, no favors — and every point shown so you can check it.</div>
     </div>
-    <button class="btn" id="startbtn">DEAL</button>
     <div class="foot">A DJ's Puzzle Palace game</div>
   </div>
-  <div id="ver">Pinochle Seniors · v1.1</div>
+  <div id="ver">Pinochle Seniors · v1.2</div>
 </div>
 
 <script>
@@ -283,7 +301,13 @@ function el(id){ return document.getElementById(id); }
 /* ================= ENGINE (verified in pinochle-sim.js) ================= */
 var SUIT_SYM=['♠','♥','♦','♣'], SUIT_COLOR=['blk','red','red','blk'];
 var VAL_NAME=['9','J','Q','K','10','A'];
-var GAME_TARGET=150, MIN_BID=20;
+var SET={scoring:'150', stuck:'on', pass:'off', help:'on'};
+try{ Object.assign(SET, JSON.parse(localStorage.getItem('pin.settings')||'{}')); }catch(e){}
+function saveSet(){ try{ localStorage.setItem('pin.settings', JSON.stringify(SET)); }catch(e){} }
+function SF(){ return SET.scoring==='1500'?10:1; }          // score factor: classic scoring is everything x10
+function minBid(){ return 20*SF(); }
+function target(){ return 150*SF(); }
+function stuckDealer(){ return SET.stuck!=='off'; }
 var NINE=0, Jv=1, Qv=2, Kv=3, Tv=4, Av=5;
 function cardStr(c){ return VAL_NAME[c.v]+SUIT_SYM[c.s]; }
 function makeDeck(){ var d=[]; for(var s=0;s<4;s++)for(var v=0;v<6;v++){ d.push({v:v,s:s}); d.push({v:v,s:s}); } return d; }
@@ -296,7 +320,7 @@ function counts(hand){
 }
 function meldScore(hand, trump){
   var m=counts(hand), lines=[], total=0;
-  function add(pts,text){ total+=pts; lines.push({pts:pts,text:text}); }
+  function add(pts,text){ pts*=SF(); total+=pts; lines.push({pts:pts,text:text}); }
   var runs=Math.min(m[trump][Av],m[trump][Tv],m[trump][Kv],m[trump][Qv],m[trump][Jv]);
   if(runs===2) add(150,'DOUBLE RUN in trump '+SUIT_SYM[trump]+' — A 10 K Q J twice');
   else if(runs===1) add(15,'Run in trump '+SUIT_SYM[trump]+' — A 10 K Q J');
@@ -352,7 +376,7 @@ function legalPlays(hand,trick,trump){
   }
   return hand.slice();
 }
-function counterPoints(cards,gotLast){ return cards.filter(isCounter).length+(gotLast?1:0); }
+function counterPoints(cards,gotLast){ return (cards.filter(isCounter).length+(gotLast?1:0))*SF(); }
 function scoreHand(meldT,ctrT,tricksT,bidTeam,bid){
   var res=[];
   for(var t=0;t<2;t++){
@@ -383,7 +407,7 @@ function scoreHand(meldT,ctrT,tricksT,bidTeam,bid){
 function bestTrumpFor(hand){
   var bestS=0,bestV=-1;
   for(var s=0;s<4;s++){
-    var ms=meldScore(hand,s).total;
+    var ms=meldScore(hand,s).total/SF();
     var m=counts(hand);
     var strength=ms+m[s].reduce(function(a,b){return a+b;},0)*1.4+m[s][Av]*2+m[s][Tv]*1.2;
     if(strength>bestV){ bestV=strength; bestS=s; }
@@ -396,13 +420,13 @@ function handEstimate(hand){
   var m=counts(hand);
   var trumpLen=m[s].reduce(function(a,b){return a+b;},0);
   var aces=0; for(var i=0;i<4;i++) aces+=m[i][Av];
-  var est=meld+7+trumpLen*1.1+aces*1.4;
-  return {trump:s, meld:meld, maxBid:Math.floor(est)};
+  var est=meld+(7+trumpLen*1.1+aces*1.4)*SF();
+  return {trump:s, meld:meld, maxBid:Math.floor(est/SF())*SF()};
 }
 function aiBidTurn(hand,highBid){
   var e=handEstimate(hand);
-  var need=Math.max(MIN_BID,highBid+1);
-  if(e.maxBid>=need&&e.meld>=4) return need;
+  var need=Math.max(minBid(),highBid+SF());
+  if(e.maxBid>=need&&e.meld>=4*SF()) return need;
   return -1;
 }
 function aiPlay(hand,trick,trump,ctx){
@@ -470,7 +494,7 @@ function deal(){
   G.dealer=(G.dealer+1)%4;
   var d=shuffle(makeDeck());
   G.hands=[sortHand(d.slice(0,12)), d.slice(12,24), d.slice(24,36), d.slice(36,48)];
-  G.active=[true,true,true,true]; G.highBid=MIN_BID-1; G.highP=-1; G.anyBid=false;
+  G.active=[true,true,true,true]; G.highBid=minBid()-SF(); G.highP=-1; G.anyBid=false; G.sel=[]; G.passStage=null; hidePassBtn();
   G.declarer=-1; G.bid=0; G.bidTeam=-1; G.trump=-1;
   G.meldT=[0,0]; G.wonCards=[[],[]]; G.tricksT=[0,0]; G.lastWinner=-1;
   G.trick=[]; G.dealAnim=true;
@@ -493,17 +517,20 @@ function sortHand(h){
 function passesCount(){ return G.active.filter(function(a){return !a;}).length; }
 function auctionTurn(p, guard){
   if(G.over) return;
-  if(guard>60){ finishAuction(G.dealer, MIN_BID); return; }
+  if(guard>60){ finishAuction(G.dealer, minBid()); return; }
   // auction ends when 3 have passed and someone bid
   if(G.anyBid && passesCount()>=3){ finishAuction(G.highP, G.highBid); return; }
-  if(!G.anyBid && passesCount()===3){ // dealer stuck
-    finishAuction(G.dealer, MIN_BID, true); return;
+  if(!G.anyBid && passesCount()===4){ // everyone passed (stuck dealer off): throw the hand in
+    pop('Everyone passed — new deal', function(){ deal(); }); return;
+  }
+  if(!G.anyBid && passesCount()===3 && stuckDealer()){ // dealer stuck
+    finishAuction(G.dealer, minBid(), true); return;
   }
   if(!G.active[p]){ auctionTurn((p+1)%4, guard+1); return; }
   setTurn(p);
   if(p===0){ showBidPanel(); return; }
   setTimeout(function(){
-    var b=aiBidTurn(G.hands[p], G.anyBid?G.highBid:MIN_BID-1);
+    var b=aiBidTurn(G.hands[p], G.anyBid?G.highBid:minBid()-SF());
     if(b>0){ G.highBid=b; G.highP=p; G.anyBid=true;
       setChip(p,'bid '+b);
       pop(SEAT_NAMES[p]+' bids <b>'+b+'</b>', function(){ auctionTurn((p+1)%4, guard+1); });
@@ -514,19 +541,20 @@ function auctionTurn(p, guard){
   }, AI_MS);
 }
 function showBidPanel(){
-  var e=handEstimate(G.hands[0]);
-  var need=Math.max(MIN_BID, G.highBid+1);
-  el('bpSub').innerHTML=(G.anyBid?('High bid is <b>'+G.highBid+'</b> by '+SEAT_NAMES[G.highP]+'.'):'No bids yet — minimum is <b>'+MIN_BID+'</b>.')+
-    '<br>Your hand is worth about <b>'+e.maxBid+'</b> (meld '+e.meld+', best suit '+SUIT_SYM[e.trump]+').';
+  var e=handEstimate(G.hands[0]), help=SET.help!=='off';
+  var need=Math.max(minBid(), G.highBid+SF());
+  el('bpSub').innerHTML=(G.anyBid?('High bid is <b>'+G.highBid+'</b> by '+SEAT_NAMES[G.highP]+'.'):'No bids yet — minimum is <b>'+minBid()+'</b>.')+
+    (help?('<br>Your hand is worth about <b>'+e.maxBid+'</b> (meld '+e.meld+', best suit '+SUIT_SYM[e.trump]+').'):'');
+  el('bpNote').innerHTML='The winning bidder names trump. Your team must then reach the bid with <b>meld + counters</b> — every ace, ten and king you capture is a counter'+(SF()>1?' worth 10':'')+', and the last trick is worth '+(SF()>1?'10':'one')+' more.';
   var wrap=el('bpBtns'); wrap.innerHTML='';
   function btn(label, cls, fn){ var b=document.createElement('button'); b.className='bigbtn'+(cls?' '+cls:''); b.innerHTML=label; b.onclick=fn; wrap.appendChild(b); return b; }
-  var canBid = need<=50;
-  var sugBid = e.maxBid>=need;
+  var canBid = need<=50*SF();
+  var sugBid = help && e.maxBid>=need;
   if(canBid){
     btn('BID '+need, sugBid?'sug':'', function(){ youBid(need); });
-    if(need+4<=50) btn('BID '+(need+4), '', function(){ youBid(need+4); });
+    if(need+4*SF()<=50*SF()) btn('BID '+(need+4*SF()), '', function(){ youBid(need+4*SF()); });
   }
-  btn('PASS', sugBid?'':'sug', function(){ youPass(); });
+  btn('PASS', (help && !sugBid)?'sug':'', function(){ youPass(); });
   el('bidPanel').style.display='flex';
 }
 function youBid(n){
@@ -557,7 +585,7 @@ function showTrumpPanel(){
   var wrap=el('tpBtns'); wrap.innerHTML='';
   for(var s=0;s<4;s++){ (function(s){
     var b=document.createElement('button');
-    b.className='suitbtn '+SUIT_COLOR[s]+(s===sug?' sug':'');
+    b.className='suitbtn '+SUIT_COLOR[s]+((s===sug && SET.help!=='off')?' sug':'');
     b.textContent=SUIT_SYM[s];
     b.onclick=function(){ el('trumpPanel').style.display='none'; G.trump=s; announceTrump(); };
     wrap.appendChild(b);
@@ -567,7 +595,50 @@ function showTrumpPanel(){
 function announceTrump(){
   el('bidBanner').style.display='block';
   el('bidBanner').innerHTML=SEAT_NAMES[G.declarer]+' bid '+G.bid+' · trump is <span class="tr">'+SUIT_SYM[G.trump]+'</span>';
-  pop('Trump is <b style="font-size:56px">'+SUIT_SYM[G.trump]+'</b>', function(){ showMeld(); });
+  pop('Trump is <b style="font-size:56px">'+SUIT_SYM[G.trump]+'</b>', function(){ if(SET.pass==='on') startPass(); else showMeld(); });
+}
+/* ---- pass 4 cards: the bid winner's partner passes 4 over, the bid winner passes 4 back ---- */
+function passValue(c, trump){ return (c.s===trump)?20+c.v:((c.v===Av)?10:((c.v===Kv||c.v===Qv)?3+c.v*0.1:c.v)); }
+function aiPassToDeclarer(hand, trump){ return hand.slice().sort(function(a,b){ return passValue(b,trump)-passValue(a,trump); }).slice(0,4); }
+function aiPassBack(hand, trump){ /* give back the four cards that cost the least meld and the least play value */
+  var h=hand.slice(), out=[];
+  for(var k=0;k<4;k++){
+    var base=meldScore(h,trump).total, best=-1, bestCost=1e9;
+    for(var i=0;i<h.length;i++){
+      var rest=h.slice(0,i).concat(h.slice(i+1));
+      var cost=(base-meldScore(rest,trump).total)*5+passValue(h[i],trump);
+      if(cost<bestCost){ bestCost=cost; best=i; }
+    }
+    out.push(h.splice(best,1)[0]);
+  }
+  return out;
+}
+function moveCards(from,to,cards){ cards.forEach(function(c){ var k=G.hands[from].indexOf(c); if(k>=0){ G.hands[from].splice(k,1); G.hands[to].push(c); } }); }
+function showPassBtn(label){ var b=el('passBtn'); b.textContent=label; b.style.display='inline-block'; b.disabled=true; b.onclick=confirmPass; }
+function hidePassBtn(){ var b=el('passBtn'); if(b) b.style.display='none'; }
+function startPass(){
+  G.phase='pass'; G.sel=[]; hint('');
+  var d=G.declarer, pt=(d+2)%4;
+  if(d!==0 && pt!==0){ // the other team passes among themselves
+    moveCards(pt,d,aiPassToDeclarer(G.hands[pt],G.trump));
+    moveCards(d,pt,aiPassBack(G.hands[d],G.trump));
+    renderAll(); pop(SEAT_NAMES[pt]+' and '+SEAT_NAMES[d]+' pass 4 cards', showMeld); return;
+  }
+  if(pt===0){ // your partner won the bid: you pass 4 over first
+    G.passStage='give'; hint('Partner won the bid — pick 4 cards to pass over. Trump and aces help most.'); renderHand(); showPassBtn('PASS 4 TO PARTNER');
+  } else {    // you won the bid: partner passes first, then you pass 4 back
+    moveCards(2,0,aiPassToDeclarer(G.hands[2],G.trump)); G.hands[0]=sortHand(G.hands[0]); G.dealAnim=true; renderAll();
+    pop('Partner passes you 4 cards', function(){ G.passStage='back'; hint('Pick 4 cards to pass back to your partner.'); renderHand(); showPassBtn('PASS 4 BACK'); });
+  }
+}
+function confirmPass(){
+  if(G.phase!=='pass' || G.sel.length!==4) return;
+  var cards=G.sel.map(function(i){ return G.hands[0][i]; }); G.sel=[]; hidePassBtn(); hint('');
+  moveCards(0,2,cards);
+  if(G.passStage==='give'){
+    moveCards(2,0,aiPassBack(G.hands[2],G.trump)); G.hands[0]=sortHand(G.hands[0]); G.dealAnim=true; renderAll();
+    pop('Partner passes 4 cards back', showMeld);
+  } else { G.hands[0]=sortHand(G.hands[0]); renderAll(); pop('Passed back to partner', showMeld); }
 }
 /* ---- meld ---- */
 function showMeld(){
@@ -599,7 +670,7 @@ function showMeld(){
       });
       el('mSumUs').textContent='Team meld: '+G.meldT[0];
       el('mSumThem').textContent='Team meld: '+G.meldT[1];
-      el('mpTotalLine').textContent='Now the play — 25 counters on the table.';
+      el('mpTotalLine').textContent='Now the play — '+(25*SF())+' counters on the table.';
       nx.textContent='PLAY THE HAND';
       nx.style.display='inline-block';
       nx.onclick=function(){ el('meldPanel').style.display='none'; startPlay(); };
@@ -642,6 +713,13 @@ function nextTurn(p){
   }
 }
 function onCardTap(idx){
+  if(G.phase==='pass'){
+    var k=G.sel.indexOf(idx);
+    if(k>=0) G.sel.splice(k,1); else if(G.sel.length<4) G.sel.push(idx);
+    renderHand(); el('passBtn').disabled=(G.sel.length!==4);
+    hint((G.passStage==='give'?'Pick 4 cards to pass over':'Pick 4 cards to pass back')+' ('+G.sel.length+'/4)'+(G.sel.length===4?' — tap the button below.':'.'));
+    return;
+  }
   if(G.phase!=='playYou') return;
   var c=G.hands[0][idx];
   if(!c||!c._legal) return;
@@ -706,17 +784,17 @@ function endHand(){
       i++; setTimeout(reveal, 900);
     } else {
       G.scores[0]+=hs[0].total; G.scores[1]+=hs[1].total;
-      if(window.DJPP){ try{ DJPP.stat('bestMeld', G.meldT[0], 'max');
+      if(window.DJPP){ try{ DJPP.stat('bestMeld', G.meldT[0]/SF(), 'max');
         if(G.bidTeam===0){ DJPP.stat(hs[0].total>=0?'bidsMade':'bidsSet',1,'count'); } }catch(e){} }
       el('mSumUs').textContent=(hs[0].total>=0?'+':'')+hs[0].total+' this hand';
       el('mSumThem').textContent=(hs[1].total>=0?'+':'')+hs[1].total+' this hand';
       updBoard();
       el('mpTotalLine').textContent='You & Partner '+G.scores[0]+' · West & East '+G.scores[1];
       var ended=false, winTeam=-1;
-      if(G.scores[0]>=GAME_TARGET||G.scores[1]>=GAME_TARGET){
+      if(G.scores[0]>=target()||G.scores[1]>=target()){
         ended=true;
-        if(G.scores[0]>=GAME_TARGET&&G.scores[1]>=GAME_TARGET) winTeam=G.bidTeam; // bidder goes out
-        else winTeam=G.scores[0]>=GAME_TARGET?0:1;
+        if(G.scores[0]>=target()&&G.scores[1]>=target()) winTeam=G.bidTeam; // bidder goes out
+        else winTeam=G.scores[0]>=target()?0:1;
       }
       nx.textContent=ended?'SEE RESULT':'NEXT HAND';
       nx.style.display='inline-block';
@@ -738,7 +816,8 @@ function endGame(winTeam){
   el('finalline').textContent= youWin? '🏆 YOU WIN!' : 'West & East win';
   el('finalline').style.color= youWin? 'var(--goldhi)':'var(--them)';
   el('resultbox').innerHTML='<b>Final:</b> You &amp; Partner '+G.scores[0]+' · West &amp; East '+G.scores[1]+
-    ((G.scores[0]>=GAME_TARGET&&G.scores[1]>=GAME_TARGET)?'<br>Both teams crossed 150 — the bidding team goes out first.':'');
+    ((G.scores[0]>=target()&&G.scores[1]>=target())?'<br>Both teams crossed '+target()+' — the bidding team goes out first.':'')+
+    '<br><span style="opacity:.75">Scoring to '+target()+(SET.pass==='on'?' · passing 4 cards':'')+(SET.stuck==='off'?' · no stuck dealer':'')+'</span>';
   el('startbtn').textContent='PLAY AGAIN';
   el('startbtn').onclick=function(){ el('finalline').style.display='none'; el('resultbox').style.display='none'; newGame(); };
   if(window.DJPP){ try{ DJPP.record({won:youWin, you:G.scores[0], opp:G.scores[1]}); }catch(e){} }
@@ -749,6 +828,7 @@ function setChip(p,text){
   el(ids[p]).textContent=text;
 }
 function updBoard(){
+  el('boardSub').textContent='for seniors · first team to '+target()+' · every meld explained';
   el('scoreUs').textContent=G?G.scores[0]:0;
   el('scoreThem').textContent=G?G.scores[1]:0;
   function stat(t){
@@ -793,6 +873,7 @@ function renderHand(){
   var nonH=el('youName').offsetHeight+7+22;
   var hintEl=el('hint');
   if(hintEl.style.display!=='none'&&hintEl.textContent) nonH+=hintEl.offsetHeight+9;
+  var pb=el('passBtn'); if(pb.style.display!=='none') nonH+=pb.offsetHeight+8;
   var budgetH=innerHeight-10-trickBottom-nonH+40;
   var rowH=Math.floor((Math.max(budgetH,150)-6*(rows.length-1))/rows.length);
   var maxCWH=Math.max(58, Math.floor(rowH/1.42));
@@ -800,8 +881,9 @@ function renderHand(){
   rows.forEach(function(rg){
     var a=rg[0], b=rg[1], m=b-a;
     var CW=Math.min(150, maxCWH, 112);
-    var strip=Math.max(38, Math.min(58, Math.floor((availW-CW)/Math.max(m-1,1))));
+    var strip=Math.max(30, Math.min(58, Math.floor((availW-CW)/Math.max(m-1,1))));
     if(strip>CW*0.8) strip=Math.floor(CW*0.8);
+    if(CW+strip*(m-1)>availW) CW=Math.max(48, availW-strip*(m-1));
     var row=document.createElement('div'); row.className='handrow';
     row.style.position='relative'; row.style.height=Math.round(CW*1.42+16)+'px';
     row.style.width=(CW+strip*(m-1))+'px';
@@ -816,7 +898,8 @@ function renderHand(){
       if(myTurn){
         if(legalLeft[k]>0){ c._legal=true; legalLeft[k]--; if(G.lift===idx){ elc.classList.add('lifted'); elc.style.zIndex=90; } }
         else { c._legal=false; elc.classList.add('dim'); }
-      } else c._legal=false;
+      } else if(G.phase==='pass'){ c._legal=true; if(G.sel&&G.sel.indexOf(idx)>=0){ elc.classList.add('lifted'); elc.style.zIndex=90; } }
+      else c._legal=false;
       elc.onclick=function(){ onCardTap(idx); };
       row.appendChild(elc);
     })(i, cards[i], i-a); }
@@ -827,17 +910,22 @@ function renderHand(){
 function renderAll(){ layoutSeats(); renderBacks(); renderHand(); updBoard(); }
 window.addEventListener('resize', function(){ if(G) renderAll(); });
 el('startbtn').onclick=function(){ newGame(); };
+function applySet(){ document.querySelectorAll('#optsRow .seg').forEach(function(seg){ var k=seg.getAttribute('data-key'); seg.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-v')===SET[k]); }); }); updBoard(); }
+document.querySelectorAll('#optsRow .seg button').forEach(function(b){ b.onclick=function(){ SET[b.parentNode.getAttribute('data-key')]=b.getAttribute('data-v'); saveSet(); applySet(); }; });
+applySet();
 
 /* test hook */
-window.__PIN={ get G(){return G;}, newGame:newGame, deal:deal, meldScore:meldScore, endGame:endGame,
-  legalPlays:legalPlays, trickWinner:trickWinner, handEstimate:handEstimate,
+window.__PIN={ get G(){return G;}, newGame:newGame, deal:deal, meldScore:meldScore, endGame:endGame, SET:SET, applySet:applySet, SF:SF, minBid:minBid, target:target,
+  legalPlays:legalPlays, trickWinner:trickWinner, handEstimate:handEstimate, aiBidTurn:aiBidTurn, counterPoints:counterPoints, scoreHand:scoreHand,
+  startPass:startPass, confirmPass:confirmPass, aiPassToDeclarer:aiPassToDeclarer, aiPassBack:aiPassBack, announceTrump:announceTrump, showBidPanel:showBidPanel,
+  auctionTurn:auctionTurn, finishAuction:finishAuction, showMeld:showMeld,
   tap:onCardTap, youBid:youBid, youPass:youPass,
   pickTrump:function(s){ el('trumpPanel').style.display='none'; G.trump=s; announceTrump(); },
   next:function(){ var b=el('mpNext'); if(b&&getComputedStyle(b).display!=='none'){ b.onclick(); return true; } return false; },
   state:function(){ function vis(id){ return getComputedStyle(el(id)).display!=='none'; }
     return {phase:G?G.phase:'none', scores:G?G.scores.slice():null,
     bid:G?G.bid:0, declarer:G?G.declarer:-1, trump:G?G.trump:-1,
-    hand:G&&G.hands?G.hands[0].length:0, trick:G?G.trick.length:0,
+    hand:G&&G.hands?G.hands[0].length:0, trick:G?G.trick.length:0, sel:G&&G.sel?G.sel.slice():[], passBtn:vis('passBtn'), hint:el('hint').textContent,
     over:G?G.over:false, overlay:vis('overlay'), bidPanel:vis('bidPanel'),
     trumpPanel:vis('trumpPanel'), meldPanel:vis('meldPanel')}; } };
 })();
