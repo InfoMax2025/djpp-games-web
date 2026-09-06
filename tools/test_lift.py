@@ -29,9 +29,14 @@ with sync_playwright() as p:
     errs=[]; pg.on('pageerror', lambda e: errs.append(str(e)))
     pg.goto('http://127.0.0.1:8902/index.html'); pg.wait_for_timeout(500)
     pg.evaluate("__GIN.newGame()")
-    for _ in range(40):
+    for _ in range(60):
         pg.wait_for_timeout(250)
-        if pg.evaluate("__GIN.G.phase") in ('draw','discard'): break
+        ph=pg.evaluate("__GIN.G.phase")
+        if ph=='offerYou':   # the up-card is offered to you first: pass on it — hammering the button must not run the offer twice
+            for _k in range(3):
+                if pg.locator('#actions button', has_text='Pass').count(): pg.locator('#actions button', has_text='Pass').first.click()
+            pg.wait_for_timeout(200); continue
+        if ph in ('draw','discard'): break
     ph=pg.evaluate("__GIN.G.phase")
     if ph=='draw': pg.evaluate("__GIN.pickStock()"); pg.wait_for_timeout(300)
     ph=pg.evaluate("__GIN.G.phase"); res.append(('gin reached discard phase', ph=='discard'))
@@ -42,6 +47,8 @@ with sync_playwright() as p:
     res.append(('gin first tap lifts, does not discard', pg.evaluate("__GIN.G.phase")=='discard' and pg.evaluate("__GIN.G.hand.length")==before and pg.locator('#hand .card.lifted').count()==1))
     pg.evaluate(f"__GIN.tapCard({idx})"); pg.wait_for_timeout(200)
     res.append(('gin second tap discards', pg.evaluate("__GIN.G.hand.length")==before-1))
+    pg.wait_for_timeout(2500)
+    res.append(('gin no duplicated opponent turn after the offer', pg.evaluate("__GIN.G.hand.length")==10 and pg.evaluate("__GIN.G.opp.length") in (10,11)))
     res.append(('gin no errors', not errs)); s.shutdown()
     b.close()
 bad=0

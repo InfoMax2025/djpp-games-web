@@ -7,7 +7,7 @@ import json, pathlib, sys, re
 
 ROOT = pathlib.Path(__file__).parent
 GAMES = {
-    'cribbage': {'title': 'Cribbage Seniors: Big Cards', 'cache': 'crib-v2-0',
+    'cribbage': {'title': 'Cribbage Seniors: Big Cards', 'cache': 'crib-v2-1',
                  'icons': ['./icon-192.png','./icon-512.png','./icon-maskable-512.png','./favicon.png','./icon-apple-180.png']},
     'euchre':   {'title': 'Euchre for Seniors - Big Cards', 'cache': 'euchre-v2-0',
                  'icons': ['./icon-192.png','./icon-512.png','./icon-maskable-512.png','./favicon.png','./icon-apple-180.png']},
