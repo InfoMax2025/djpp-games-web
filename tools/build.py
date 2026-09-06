@@ -9,11 +9,11 @@ ROOT = pathlib.Path(__file__).parent
 GAMES = {
     'cribbage': {'title': 'Cribbage Seniors: Big Cards', 'cache': 'crib-v2-1',
                  'icons': ['./icon-192.png','./icon-512.png','./icon-maskable-512.png','./favicon.png','./icon-apple-180.png']},
-    'euchre':   {'title': 'Euchre for Seniors - Big Cards', 'cache': 'euchre-v2-0',
+    'euchre':   {'title': 'Euchre for Seniors - Big Cards', 'cache': 'euchre-v2-1',
                  'icons': ['./icon-192.png','./icon-512.png','./icon-maskable-512.png','./favicon.png','./icon-apple-180.png']},
-    'ginrummy': {'title': 'Gin Rummy Seniors: Big Cards', 'cache': 'gin-v2-0',
+    'ginrummy': {'title': 'Gin Rummy Seniors: Big Cards', 'cache': 'gin-v2-1',
                  'icons': ['./icon-192.png','./icon-512.png','./icon-maskable-512.png','./favicon.png','./icon-apple-180.png']},
-    'pinochle': {'title': 'Pinochle Seniors: Big Cards', 'cache': 'pin-v2-0',
+    'pinochle': {'title': 'Pinochle Seniors: Big Cards', 'cache': 'pin-v2-1',
                  'icons': ['./icon-192.png','./icon-512.png','./icon-maskable-512.png','./favicon.png','./icon-apple-180.png']},
 }
 
