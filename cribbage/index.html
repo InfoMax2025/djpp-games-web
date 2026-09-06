@@ -168,14 +168,15 @@
   #cpNext{margin-top:10px;}
 
   /* ===== overlay (title / between hands / win) ===== */
-  #overlay{position:absolute;inset:0;z-index:24;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  #overlay{position:absolute;inset:0;z-index:24;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
     background:radial-gradient(ellipse at 50% 38%, rgba(10,66,33,.97), rgba(3,20,10,.99));text-align:center;padding:22px;overflow-y:auto;}
+  #overlay>*:first-child{margin-top:auto;} #overlay>*:last-child{margin-bottom:auto;} /* centers when short, scrolls from the top when tall */
   #overlay .kick{font-size:13px;letter-spacing:3px;color:var(--gold);font-weight:800;margin-bottom:8px;}
   #overlay h1{font-size:clamp(30px,7.5vw,54px);margin:0;font-weight:900;color:#fff;letter-spacing:1px;text-shadow:0 3px 8px rgba(0,0,0,.5);}
   #overlay h1 .s{color:var(--gold);}
   #overlay .sub{font-size:clamp(15px,3vw,19px);color:#c9ecd6;margin:10px 0 20px;font-weight:700;}
   #overlay .how{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:16px;
-    padding:16px 22px;margin-bottom:22px;text-align:left;max-width:600px;}
+    padding:16px 22px;margin:22px 0 4px;text-align:left;max-width:600px;}
   #overlay .how div{margin:9px 0;font-size:clamp(15px,2.8vw,17px);color:#e2f3e8;line-height:1.45;}
   #overlay .how b{color:var(--gold);}
   #overlay .foot{margin-top:18px;font-size:12px;color:rgba(255,255,255,.4);}
@@ -187,6 +188,18 @@
     box-shadow:0 10px 30px rgba(30,150,80,.5), inset 0 2px 0 rgba(255,255,255,.6);}
   #startbtn:active{transform:scale(.97);}
   #ver{position:absolute;right:10px;bottom:8px;z-index:6;color:rgba(255,255,255,.4);font-size:11px;pointer-events:none;}
+  /* v1.2: settings, coach line, hint marks */
+  #optsRow{display:flex;flex-direction:column;gap:10px;align-items:center;margin-bottom:18px;}
+  .optl{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;font-size:16px;font-weight:800;color:#c9ecd6;}
+  .seg{display:inline-flex;border:2px solid rgba(255,255,255,.3);border-radius:30px;overflow:hidden;background:rgba(0,0,0,.25);}
+  .seg button{border:none;background:transparent;color:var(--cream);font-size:16px;font-weight:800;padding:10px 16px;cursor:pointer;font-family:inherit;}
+  .seg button.on{background:linear-gradient(180deg,#ffe08a,#e5ad2e);color:#241800;}
+  #coach{display:none;width:fit-content;max-width:92vw;margin:0 auto 8px;font-size:16px;font-weight:700;color:#dff3ff;text-align:center;
+    background:rgba(5,28,15,.86);border:1px solid rgba(127,217,255,.45);border-radius:14px;padding:8px 16px;box-shadow:0 4px 14px rgba(0,0,0,.4);pointer-events:none;line-height:1.35;}
+  #coach b{color:#7fd9ff;}
+  #hand .card.hintmark{box-shadow:0 6px 16px rgba(0,0,0,.45), 0 0 0 5px #7fd9ff, 0 0 22px rgba(127,217,255,.7);}
+  .btn.sm{font-size:17px;padding:12px 18px;border-radius:14px;}
+  #actions{flex-wrap:wrap;}
 </style>
 </head>
 <body>
@@ -215,6 +228,7 @@
     <div id="hint"></div>
     <div id="actions"></div>
     <div id="dwline"></div>
+    <div id="coach"></div>
     <div id="hand"></div>
   </div>
 
@@ -233,17 +247,22 @@
     <div class="sub">Big cards. Every point counted for you, out loud. A fair deal, always.</div>
     <div id="finalline"></div>
     <div id="resultbox"></div>
+    <div id="optsRow">
+      <div class="optl"><span>Opponent</span><div class="seg" data-key="diff"><button data-v="relaxed">Relaxed</button><button data-v="standard">Standard</button><button data-v="sharp">Sharp</button></div></div>
+      <div class="optl"><span>Coach tips</span><div class="seg" data-key="coach"><button data-v="on">On</button><button data-v="off">Off</button></div></div>
+    </div>
+    <button id="startbtn">DEAL</button>
     <div class="how" id="howBox">
       <div><b>Goal:</b> race your pegs down the board to <b>121 points</b>.</div>
       <div><b>Each hand:</b> you get 6 cards — keep 4, send 2 to the <b>crib</b> (a bonus hand the dealer scores).</div>
       <div><b>The play:</b> take turns laying cards without going over <b>31</b>. Fifteens, pairs and runs score as you go.</div>
       <div><b>The count:</b> then every hand is <b>counted for you, step by step</b> — fifteen-two, fifteen-four… nothing missed, no math needed.</div>
       <div><b>Honest:</b> truly random shuffles. The opponent only ever sees its own cards — and every count is shown so you can check it.</div>
+      <div><b>Learning?</b> Tap <b>HINT</b> any time for the best discard or play. <b>Relaxed</b> opponents slip up and let you take a card back.</div>
     </div>
-    <button id="startbtn">DEAL</button>
     <div class="foot">A DJ's Puzzle Palace game</div>
   </div>
-  <div id="ver">Cribbage Seniors · v1.1</div>
+  <div id="ver">Cribbage Seniors · v1.2</div>
 </div>
 
 <script>
@@ -255,6 +274,9 @@ function el(id){ return document.getElementById(id); }
 var SUIT_SYM=['♠','♥','♦','♣'], SUIT_COLOR=['blk','red','red','blk'];
 var RANKS=['','A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 var GAME_TARGET=121;
+var SET={diff:'standard',coach:'on'};try{Object.assign(SET,JSON.parse(localStorage.getItem('crib.settings')||'{}'));}catch(e){}
+function saveSet(){try{localStorage.setItem('crib.settings',JSON.stringify(SET));}catch(e){}}
+function takebacksAllowed(){return SET.diff==='relaxed'?99:(SET.diff==='sharp'?0:3);}
 function val(c){ return Math.min(c.r,10); }
 function cardStr(c){ return RANKS[c.r]+SUIT_SYM[c.s]; }
 function cardKey(c){ return c.r+':'+c.s; }
@@ -313,8 +335,14 @@ function pegScore(pile){
   if(count===31){ pts+=2; lines.push('Thirty-one for 2'); }
   return {pts:pts, lines:lines, count:count};
 }
-function aiDiscard(hand6, isDealer, deckUnseen){
-  var bestIdx=null, bestVal=-1e9;
+function aiDiscard(hand6, isDealer, deckUnseen, level){
+  var opts=discardOptions(hand6,isDealer,deckUnseen,level||'standard');
+  if((level||'standard')==='relaxed'){ var top=opts.slice(0,4); return top[Math.floor(Math.random()*top.length)].idx; }
+  return opts[0].idx;
+}
+/* every keep/toss split ranked by expected hand value (+/- what the toss gives the crib) */
+function discardOptions(hand6, isDealer, deckUnseen, level){
+  var out=[]; var cw=(level==='sharp')?(isDealer?1.0:-1.2):(isDealer?0.6:-0.8);
   for(var a=0;a<6;a++) for(var b=a+1;b<6;b++){
     var keep=[], toss=[hand6[a],hand6[b]];
     for(var i=0;i<6;i++) if(i!==a&&i!==b) keep.push(hand6[i]);
@@ -326,14 +354,16 @@ function aiDiscard(hand6, isDealer, deckUnseen){
     if(val(toss[0])+val(toss[1])===15) crib+=2;
     toss.forEach(function(c){ if(c.r===5) crib+=1.5; if(c.r===11) crib+=0.4; });
     if(Math.abs(toss[0].r-toss[1].r)===1) crib+=0.8;
-    ev+=(isDealer?0.6:-0.8)*crib;
-    if(ev>bestVal){ bestVal=ev; bestIdx=[a,b]; }
+    if(level==='sharp'){ if(toss[0].r===5&&toss[1].r===5) crib+=1.5; if(Math.abs(toss[0].r-toss[1].r)===2) crib+=0.3; if(toss[0].s===toss[1].s) crib+=0.2; }
+    out.push({idx:[a,b], keep:keep, toss:toss, handEv:ev, ev:ev+cw*crib});
   }
-  return bestIdx;
+  out.sort(function(x,y){ return y.ev-x.ev; });
+  return out;
 }
-function aiPegPlay(handLeft, pile, count){
+function aiPegPlay(handLeft, pile, count, level, unseen){
   var legal=handLeft.filter(function(c){ return count+val(c)<=31; });
   if(!legal.length) return null;
+  if(level==='relaxed' && Math.random()<0.35) return legal[Math.floor(Math.random()*legal.length)];
   var best=null, bestScore=-1e9;
   for(var i=0;i<legal.length;i++){
     var c=legal[i];
@@ -343,9 +373,57 @@ function aiPegPlay(handLeft, pile, count){
     if(nc===5||nc===21) s-=25;
     if(pile.length===0 && c.r<=4) s+=6;
     s+=val(c)*0.1;
+    if(level==='sharp' && unseen && unseen.length){ /* what can the opponent peg back on this count? */
+      var np=pile.concat([c]), risk=0, n=0;
+      for(var u=0;u<unseen.length;u++){ if(nc+val(unseen[u])>31) continue; risk+=pegScore(np.concat([unseen[u]])).pts; n++; }
+      if(n) s-=(risk/n)*45;
+      var mine=handLeft.filter(function(x){ return x!==c && nc+val(x)<=31; }).length; if(!mine && handLeft.length>1) s-=8; /* don't strand yourself */
+    }
     if(s>bestScore){ bestScore=s; best=c; }
   }
   return best;
+}
+function unseenFor(who){ /* cards a player has never seen: the deck minus their dealt six, the starter and the pile */
+  var seen={}; (who===0?G.handDealt:G.oppDealt).forEach(function(c){ seen[cardKey(c)]=1; });
+  if(G.starter) seen[cardKey(G.starter)]=1; (G.pile||[]).forEach(function(c){ seen[cardKey(c)]=1; }); (G.played||[]).forEach(function(c){ seen[cardKey(c)]=1; });
+  return makeDeck().filter(function(c){ return !seen[cardKey(c)]; });
+}
+/* ---- hints & coach (always computed at Sharp level) ---- */
+function coach(msg){ var c=el('coach'); c.innerHTML=msg||''; c.style.display=msg?'block':'none'; }
+function showHint(){
+  if(!G) return;
+  var again=(G.phase==='discard' && G.hintIdx) || (G.phase==='pegYou' && G.hintCard);   // re-tapping HINT on the same decision is free
+  if(!again) G.hints=(G.hints||0)+1;
+  if(G.phase==='discard'){
+    var opts=discardOptions(G.hand, G.dealer===0, unseenFor(0), 'sharp'); var b=opts[0];
+    G.hintIdx=b.idx.slice(); G.sel=b.idx.slice();
+    coach('<b>Hint:</b> keep '+b.keep.map(cardStr).join(' ')+' — send <b>'+b.toss.map(cardStr).join(' ')+'</b> to the crib'+
+      ' <span style="opacity:.75">(averages '+b.handEv.toFixed(1)+' pts'+(G.dealer===0?', and helps your crib':', gives their crib little')+')</span>');
+    renderHand(); renderActions();
+  } else if(G.phase==='pegYou'){
+    var c=aiPegPlay(G.left[0], G.pile, G.count, 'sharp', unseenFor(0)); if(!c) return;
+    var ps=pegScore(G.pile.concat([c])); var why=ps.pts>0?ps.lines.join(', ').toLowerCase():'safest count ('+(G.count+val(c))+')';
+    G.hintCard=cardKey(c); coach('<b>Hint:</b> play <b>'+cardStr(c)+'</b> — '+why); renderHand();
+  }
+}
+function coachDiscard(chosen){ /* after SEND TO CRIB: how did the keep compare? */
+  if(SET.coach!=='on') return;
+  var opts=discardOptions(G.handDealt, G.dealer===0, unseenFor(0), 'sharp'); var best=opts[0];
+  var mine=null; for(var i=0;i<opts.length;i++){ var t=opts[i].toss; if((cardKey(t[0])===cardKey(chosen[0])&&cardKey(t[1])===cardKey(chosen[1]))||(cardKey(t[0])===cardKey(chosen[1])&&cardKey(t[1])===cardKey(chosen[0]))){ mine=opts[i]; break; } }
+  if(!mine) return;
+  if(mine===best) coach('<b>Coach:</b> that was the best possible keep — averages '+mine.handEv.toFixed(1)+' pts.');
+  else if(best.ev-mine.ev<0.6) coach('<b>Coach:</b> good keep ('+mine.handEv.toFixed(1)+' avg). Sending '+best.toss.map(cardStr).join(' ')+' was a hair better.');
+  else coach('<b>Coach:</b> your keep averages '+mine.handEv.toFixed(1)+' pts; keeping '+best.keep.map(cardStr).join(' ')+' (toss '+best.toss.map(cardStr).join(' ')+') would average '+best.handEv.toFixed(1)+'.');
+}
+/* ---- take back: rewind your last pegging play and the opponent's answer ---- */
+function pegSnapshot(){ return JSON.stringify({left:G.left, pile:G.pile, count:G.count, lastPlayer:G.lastPlayer, scores:G.scores, prev:G.prevScores, goSaid:G.goSaid, played:G.played||[]}); }
+function takeBack(){
+  if(!G || G.phase!=='pegYou' || !G.undo || G.takebacks>=takebacksAllowed()) return;
+  var S=JSON.parse(G.undo); G.undo=null; G.takebacks=(G.takebacks||0)+1;
+  G.left=S.left; G.pile=S.pile; G.count=S.count; G.lastPlayer=S.lastPlayer; G.scores=S.scores; G.prevScores=S.prev; G.goSaid=S.goSaid; G.played=S.played; G.lift=-1; G.hintCard=null;
+  el('ptsYou').textContent=G.scores[0]; el('ptsOpp').textContent=G.scores[1]; movePegs(); renderPile(); updateCount();
+  coach('<b>Taken back.</b> Your play and the opponent\'s answer were undone'+(takebacksAllowed()<99?(' · '+(takebacksAllowed()-G.takebacks)+' left this game'):'')+'.');
+  nextPegTurn(0, true);
 }
 
 /* ================= RENDER HELPERS ================= */
@@ -412,13 +490,13 @@ function award(p, pts, reason, then){
 
 function newGame(){ G={ scores:[0,0], prevScores:[0,0], dealer:Math.floor(Math.random()*2), over:false, winner:-1,
   hand:null, opp:null, crib:null, starter:null, phase:'idle', sel:[],
-  left:null, pile:null, count:0, lastPlayer:-1, turn:0, deckRest:null };
+  left:null, pile:null, count:0, lastPlayer:-1, turn:0, deckRest:null, hints:0, takebacks:0, undo:null, played:[] };
   el('ptsYou').textContent='0'; el('ptsOpp').textContent='0'; movePegs(); deal(); }
 
 function deal(){
   G.dealer=1-G.dealer;
   var d=shuffle(makeDeck());
-  G.hand=d.slice(0,6).sort(byRank); G.opp=d.slice(6,12);
+  G.hand=d.slice(0,6).sort(byRank); G.opp=d.slice(6,12); G.handDealt=G.hand.slice(); G.oppDealt=G.opp.slice(); G.hintIdx=null; G.hintCard=null; G.undo=null; G.played=[]; coach('');
   G.deckRest=d.slice(12);
   G.crib=[]; G.starter=null; G.sel=[]; G.pile=[]; G.count=0; G.lastPlayer=-1;
   el('overlay').style.display='none';
@@ -459,7 +537,8 @@ function confirmDiscard(){
   G.sel=[];
   // opponent discards (sees only its own cards: unseen = 52 minus its 6)
   var unseen=makeDeck().filter(function(c){ return !G.opp.some(function(o){ return cardKey(o)===cardKey(c); }); });
-  var idx=aiDiscard(G.opp, G.dealer===1, unseen);
+  var idx=aiDiscard(G.opp, G.dealer===1, unseen, SET.diff);
+  G.hintIdx=null; coachDiscard(toss);
   G.crib=G.crib.concat([G.opp[idx[0]], G.opp[idx[1]]]);
   G.opp=G.opp.filter(function(_,i){ return i!==idx[0]&&i!==idx[1]; });
   // cut the starter
@@ -523,13 +602,13 @@ function nextPegTurn(who, first){
     el('opp').classList.add('turn'); el('handwrap').classList.remove('turn');
     renderAll();
     setTimeout(function(){
-      var c=aiPegPlay(G.left[1], G.pile, G.count);
+      var c=aiPegPlay(G.left[1], G.pile, G.count, SET.diff, SET.diff==='sharp'?unseenFor(1):null);
       playCard(1, c);
     }, first?900:1300);
   }
 }
 function youPlay(c){
-  G.phase='pegWait';
+  G.phase='pegWait'; G.hintCard=null; if(G.takebacks<takebacksAllowed()) G.undo=pegSnapshot(); coach('');
   playCard(0, c);
 }
 function playCard(who, c){
@@ -547,9 +626,9 @@ function playCard(who, c){
   if(ps.pts>0) award(who, ps.pts, ps.lines.join('<br>'), after);
   else setTimeout(after, who===1?550:150);
 }
-function resetPile(){ G.pile=[]; G.count=0; G.lastPlayer=-1; G.goSaid=[false,false]; renderPile(); updateCount(); }
+function resetPile(){ G.played=(G.played||[]).concat(G.pile); G.pile=[]; G.count=0; G.lastPlayer=-1; G.goSaid=[false,false]; renderPile(); updateCount(); }
 function finishPegging(){
-  var lp=G.lastPlayer;
+  var lp=G.lastPlayer; G.undo=null; coach('');
   var done=function(){ resetPile(); el('countWrap').style.display='none'; startCounting(); };
   if(lp>=0 && G.count!==0 && G.count!==31){ award(lp, 1, 'Last card for 1', done); }
   else done();
@@ -635,11 +714,11 @@ function endGame(){
   el('finalline').textContent= youWin? '🏆 YOU WIN!' : 'Opponent wins';
   el('finalline').style.color= youWin? 'var(--gold)':'var(--opp)';
   var skunk=(G.scores[1-G.winner]<91)?' — a skunk!':'';
-  el('resultbox').innerHTML='<b>Final:</b> You '+G.scores[0]+' · Opponent '+G.scores[1]+skunk;
+  el('resultbox').innerHTML='<b>Final:</b> You '+G.scores[0]+' · Opponent '+G.scores[1]+skunk+'<br><span style="opacity:.75">Opponent: '+({relaxed:'Relaxed',standard:'Standard',sharp:'Sharp'}[SET.diff])+(G.hints?(' · hints used: '+G.hints):' · no hints')+'</span>';
   el('startbtn').textContent='PLAY AGAIN';
   el('startbtn').onclick=function(){ newGame(); };
   if(window.DJPP){ try{ DJPP.record({won:youWin, you:G.scores[0], opp:G.scores[1],
-    extra:{ skunksGiven: youWin && G.scores[1]<91, skunksTaken: !youWin && G.scores[0]<91 }}); }catch(e){} }
+    extra:{ skunksGiven: youWin && G.scores[1]<91, skunksTaken: !youWin && G.scores[0]<91, sharpWins: youWin && SET.diff==='sharp', noHintWins: youWin && !G.hints }}); }catch(e){} }
 }
 
 /* ================= RENDER ================= */
@@ -665,6 +744,7 @@ function renderHand(){
   var nonH=el('youName').offsetHeight+8+26;
   var hintEl=el('hint');
   if(hintEl.style.display!=='none' && hintEl.textContent) nonH+=hintEl.offsetHeight+10;
+  var coachEl=el('coach'); if(coachEl.style.display!=='none' && coachEl.textContent) nonH+=coachEl.offsetHeight+8;
   if(G.phase==='discard') nonH+=80;
   var budgetH=innerHeight-12-(oppB+8)-nonH;
   var rowH=Math.floor((budgetH-8*(rows.length-1))/rows.length);
@@ -678,6 +758,8 @@ function renderHand(){
       elc.style.margin='0 5px';
       if(G.dealAnim) elc.style.animation='dealin .5s cubic-bezier(.25,.9,.3,1) '+(idx*80)+'ms backwards';
       if(G.phase==='discard' && G.sel.indexOf(idx)>=0) elc.classList.add('sel');
+      if(G.phase==='discard' && G.hintIdx && G.hintIdx.indexOf(idx)>=0) elc.classList.add('hintmark');
+      if(G.phase==='pegYou' && G.hintCard===cardKey(c)) elc.classList.add('hintmark');
       if(G.phase==='pegYou'){
         c._legal = (G.count+val(c)<=31);
         if(!c._legal) elc.classList.add('dim');
@@ -695,23 +777,29 @@ function renderHand(){
 }
 function renderActions(){
   var a=el('actions'); a.innerHTML='';
+  function mk(cls,txt,fn,dis){ var b=document.createElement('button'); b.className='btn '+cls; b.textContent=txt; b.disabled=!!dis; b.onclick=fn; a.appendChild(b); return b; }
   if(G.phase==='discard'){
-    var b=document.createElement('button'); b.className='btn gold'; b.textContent='SEND TO CRIB';
-    b.disabled=(G.sel.length!==2);
-    b.onclick=confirmDiscard; a.appendChild(b);
+    mk('ghost sm','💡 HINT',showHint);
+    mk('gold','SEND TO CRIB',confirmDiscard,G.sel.length!==2);
+  } else if(G.phase==='pegYou'){
+    mk('ghost sm','💡 HINT',showHint);
+    if(G.undo && G.takebacks<takebacksAllowed()) mk('ghost sm','↩ TAKE BACK'+(takebacksAllowed()<99?' ('+(takebacksAllowed()-G.takebacks)+')':''),takeBack);
   }
 }
 function renderAll(){ renderOpp(); renderHand(); renderActions(); }
 window.addEventListener('resize', function(){ if(G) renderAll(); });
 el('startbtn').onclick=function(){ newGame(); };
+function applySet(){ document.querySelectorAll('#optsRow .seg').forEach(function(seg){ var k=seg.getAttribute('data-key'); seg.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-v')===SET[k]); }); }); }
+document.querySelectorAll('#optsRow .seg button').forEach(function(b){ b.onclick=function(){ SET[b.parentNode.getAttribute('data-key')]=b.getAttribute('data-v'); saveSet(); applySet(); }; });
+applySet();
 
 /* test hook */
 window.__CRIB={ get G(){return G;}, newGame:newGame, deal:deal, scoreHand:scoreHand, pegScore:pegScore,
-  tap:onCardTap, confirmDiscard:confirmDiscard, endGame:endGame, award:award,
+  tap:onCardTap, confirmDiscard:confirmDiscard, endGame:endGame, award:award, hint:showHint, takeBack:takeBack, SET:SET, applySet:applySet, discardOptions:discardOptions, aiPegPlay:aiPegPlay, unseenFor:unseenFor,
   cpNext:function(){ var b=el('cpNext'); if(b && b.style.display!=='none'){ b.onclick(); return true; } return false; },
   state:function(){ return {phase:G?G.phase:'none', scores:G?G.scores.slice():null,
     hand:G&&G.hand?G.hand.length:0, left:G&&G.left?[G.left[0].length,G.left[1].length]:null,
-    count:G?G.count:0, over:G?G.over:false,
+    count:G?G.count:0, over:G?G.over:false, hints:G?G.hints:0, takebacks:G?G.takebacks:0, undo:!!(G&&G.undo), coach:el('coach').textContent,
     overlay:el('overlay').style.display!=='none', countPanel:el('countPanel').style.display!=='none'}; } };
 })();
 if('serviceWorker' in navigator){
@@ -721,7 +809,8 @@ if('serviceWorker' in navigator){
 }
 window.DJPP_CONFIG={ game:'cribbage', title:'Cribbage', pkg:'com.djspuzzlepalace.cribbage', team:false,
   extras:[ {key:'bestHand',label:'Biggest hand counted'}, {key:'bestCrib',label:'Biggest crib'},
-           {key:'perfect29',label:'Perfect 29 hands'}, {key:'skunksGiven',label:'Skunks given'}, {key:'skunksTaken',label:'Skunks taken'} ] };
+           {key:'perfect29',label:'Perfect 29 hands'}, {key:'skunksGiven',label:'Skunks given'}, {key:'skunksTaken',label:'Skunks taken'},
+           {key:'sharpWins',label:'Wins vs Sharp opponent'}, {key:'noHintWins',label:'Wins without a hint'} ] };
 </script>
 <script src="djpp-kit.js" defer></script>
 </body>
