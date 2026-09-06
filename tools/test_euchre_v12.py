@@ -35,7 +35,7 @@ with sync_playwright() as p:
     check(json.loads(page.evaluate("localStorage.getItem('euchre.settings')")) == {'stick': 'on', 'defend': 'on', 'farmer': 'on', 'tips': 'on'}, 'settings persisted')
     page.reload(); page.wait_for_timeout(600)
     check(page.evaluate('__EU.SET.farmer') == 'on' and page.locator('#optsRow .seg[data-key=defend] button.on').get_attribute('data-v') == 'on', 'settings survive reload')
-    check('v1.2' in page.locator('#ver').inner_text(), 'version v1.2')
+    check('v1.3' in page.locator('#ver').inner_text(), 'version v1.3')
     check('no ads' in page.locator('#howBox').inner_text() and 'ads only' not in page.locator('#howBox').inner_text(), 'how-to says no ads')
     if shots: page.screenshot(path='/home/claude/games/shots/euchre-v12-title.png')
 

@@ -45,7 +45,7 @@ with sync_playwright() as p:
     check('1500' in page.locator('#boardSub').inner_text(), 'board line follows the scoring option')
     page.reload(); page.wait_for_timeout(600)
     check(page.evaluate('__PIN.SET.scoring') == '1500' and page.locator('#optsRow .seg[data-key=pass] button.on').get_attribute('data-v') == 'on', 'settings survive reload')
-    check('v1.2' in page.locator('#ver').inner_text(), 'version v1.2')
+    check('v1.3' in page.locator('#ver').inner_text(), 'version v1.3')
     if shots: page.screenshot(path='/home/claude/games/shots/pinochle-v12-title.png')
 
     # ---- classic scoring maths ----

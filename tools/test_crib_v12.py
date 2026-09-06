@@ -41,7 +41,7 @@ with sync_playwright() as p:
     check(page.evaluate('__CRIB.SET.diff') == 'relaxed', 'setting survives reload')
     check(page.locator('#optsRow .seg[data-key=diff] button.on').get_attribute('data-v') == 'relaxed', 'Relaxed highlighted after reload')
     page.click('#optsRow .seg[data-key=diff] button[data-v=standard]'); page.wait_for_timeout(100)
-    check('v1.2' in page.locator('#ver').inner_text(), 'version label v1.2')
+    check('v1.3' in page.locator('#ver').inner_text(), 'version label v1.3')
 
     # --- engine helpers ---
     r = page.evaluate("""(() => { const H=__CRIB; H.newGame(); const G=H.G;
