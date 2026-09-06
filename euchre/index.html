@@ -128,14 +128,15 @@
   #upcard .lab{font-size:11px;text-align:center;color:var(--gold);font-weight:800;margin-bottom:3px;letter-spacing:.5px;}
 
   /* overlay */
-  #overlay{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  #overlay{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
     background:radial-gradient(ellipse at 50% 40%,rgba(10,60,30,.96),rgba(3,16,9,.98));text-align:center;padding:22px;overflow-y:auto;}
+  #overlay>*:first-child{margin-top:auto;} #overlay>*:last-child{margin-bottom:auto;} /* centers when short, scrolls from the top when tall */
   #overlay .kick{font-size:12px;letter-spacing:3px;color:var(--gold);font-weight:800;margin-bottom:8px;}
   #overlay h1{font-size:clamp(30px,7vw,52px);margin:0;font-weight:900;color:#fff;letter-spacing:1px;}
   #overlay h1 .s{color:var(--gold);}
   #overlay .sub{font-size:clamp(13px,2.6vw,16px);color:#bfe6cd;margin:8px 0 20px;font-weight:600;}
   #overlay .how{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;
-    padding:14px 20px;margin-bottom:22px;text-align:left;max-width:560px;}
+    padding:14px 20px;margin:22px 0 4px;text-align:left;max-width:560px;}
   #overlay .how div{margin:7px 0;font-size:clamp(13px,2.5vw,15px);color:#d9efe0;}
   #overlay .how b{color:var(--gold);}
   #overlay .foot{margin-top:18px;font-size:11px;color:rgba(255,255,255,.35);}
@@ -146,6 +147,14 @@
   #ver{position:absolute;right:10px;bottom:8px;z-index:6;color:rgba(255,255,255,.4);font-size:11px;pointer-events:none;}
   .rotate{display:none;}
   #hand .card.lifted{transform:translateY(-22px);box-shadow:0 10px 22px rgba(0,0,0,.5),0 0 0 5px var(--gold,#f6c945),0 0 24px rgba(246,201,69,.6);}
+  /* v1.2 options row */
+  #optsRow{display:flex;flex-direction:column;gap:8px;align-items:center;margin:0 0 18px;}
+  .optl{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;font-size:15px;font-weight:800;color:#bfe6cd;}
+  .optl span{min-width:132px;text-align:right;}
+  .seg{display:inline-flex;border:2px solid rgba(255,255,255,.3);border-radius:30px;overflow:hidden;background:rgba(0,0,0,.25);}
+  .seg button{border:none;background:transparent;color:var(--cream);font-size:15px;font-weight:800;padding:8px 16px;cursor:pointer;min-width:58px;}
+  .seg button.on{background:var(--gold);color:#241800;}
+  .seat.loner .callbadge{display:inline-block;}
 </style>
 </head>
 <body>
@@ -174,21 +183,28 @@
   </div>
 
   <div id="hand"></div>
-  <div id="ver">Euchre for Seniors · v1.1</div>
+  <div id="ver">Euchre for Seniors · v1.2</div>
 
   <div id="overlay">
     <div class="kick">DJ'S PUZZLE PALACE · HONEST CARD GAMES</div>
     <h1>EUCHRE <span class="s">♠♥♦♣</span></h1>
     <div class="sub" id="subLine">Big cards, easy play, a fair deal. Play offline against the computer.</div>
     <div id="finalline"></div>
+    <div id="optsRow">
+      <div class="optl"><span>Stick the dealer</span><div class="seg" data-key="stick"><button data-v="on">On</button><button data-v="off">Off</button></div></div>
+      <div class="optl"><span>Defend alone</span><div class="seg" data-key="defend"><button data-v="on">On</button><button data-v="off">Off</button></div></div>
+      <div class="optl"><span>Farmer's hand</span><div class="seg" data-key="farmer"><button data-v="on">On</button><button data-v="off">Off</button></div></div>
+      <div class="optl"><span>Partner tips</span><div class="seg" data-key="tips"><button data-v="on">On</button><button data-v="off">Off</button></div></div>
+    </div>
+    <button id="startbtn">DEAL</button>
     <div class="how" id="howBox">
       <div><b>Goal:</b> you + your partner (top) race the two opponents to <b>10 points</b>.</div>
       <div><b>Bowers:</b> the Jack of trump is the <b>Right Bower</b> (highest). The other Jack of the same color is the <b>Left Bower</b> (2nd, and it counts as trump).</div>
       <div><b>Each hand:</b> call or pass on trump, then play 5 tricks. Follow the led suit if you can. Highest trump — or highest card of the led suit — wins the trick.</div>
       <div><b>Scoring:</b> take 3–4 tricks = 1, all 5 = 2, alone & all 5 = 4. Call it and take fewer than 3 = "euchred," opponents get 2.</div>
-      <div><b>Honest:</b> deals are truly random, the computer plays by the same rules you do — no rigged hands, no timers, ads only between games.</div>
+      <div><b>Options:</b> <b>Stick the dealer</b> — if everyone passes twice the dealer must call. <b>Defend alone</b> (Canadian loner) — when someone goes alone, one defender may go alone too; euchre them and it's worth <b>4</b>. <b>Farmer's hand</b> — dealt three 9s/10s? Swap them for the three buried cards. <b>Partner tips</b> — your partner says why it played each card.</div>
+      <div><b>Honest:</b> deals are truly random, the computer plays by the same rules you do — no rigged hands, no timers, no ads.</div>
     </div>
-    <button id="startbtn">DEAL</button>
     <div class="foot">A DJ's Puzzle Palace game</div>
   </div>
 </div>
@@ -255,7 +271,8 @@ function deal(){
   for(var k=0;k<5;k++) for(var p=0;p<4;p++) hands[p].push(deck.pop());
   var up=deck.pop();
   G.hands=hands; G.up=up; G.kitty=deck; // remaining 3 unused
-  G.trump=null; G.maker=-1; G.alone=-1; G.caller=-1;
+  G.trump=null; G.maker=-1; G.alone=-1; G.caller=-1; G.defAlone=-1; G.out=[]; G.farmer=-1;
+  G.play=null; G.turn=-1; G.ledSuit=null; G.resolving=false; // nothing is playable until the first trick starts
   G.tricks=[0,0,0,0]; G.trickCount=0;
   G.leader=(G.dealer+1)%4;
   sortHand(0);
@@ -272,7 +289,12 @@ function sortHand(p){
 }
 
 // ---------- bidding ----------
-var STICK_DEALER=true; // dealer must call in round 2
+var SET={stick:'on', defend:'off', farmer:'off', tips:'on'};
+try{ Object.assign(SET, JSON.parse(localStorage.getItem('euchre.settings')||'{}')); }catch(e){}
+function saveSet(){ try{ localStorage.setItem('euchre.settings', JSON.stringify(SET)); }catch(e){} }
+function stickDealer(){ return SET.stick!=='off'; } // dealer must call in round 2
+function isOut(seat){ return !!(G && G.out && G.out.indexOf(seat)>=0); }
+function activeCount(){ return 4-((G&&G.out)?G.out.length:0); }
 
 function handStrength(hand, trump, considerUp){
   // rough 0..~40 heuristic
@@ -310,7 +332,7 @@ function aiBidRound2(p){
     var strength=handStrength(G.hands[p], suit, false);
     if(!best || strength>best.strength) best={suit:suit,strength:strength};
   }
-  var mustCall = STICK_DEALER && p===G.dealer;
+  var mustCall = stickDealer() && p===G.dealer;
   var alone = best.strength>28;
   if(best.strength>=17 || mustCall) return {call:true, suit:best.suit, alone:alone};
   return {call:false};
@@ -352,34 +374,46 @@ function aiPlay(p){
   // current winning card in trick
   var win=currentTrickWinner();
   var partnerWinning = win.seat>=0 && TEAM[win.seat]===TEAM[p];
+  var lastToPlay = G.play.length>=activeCount()-1;
+  var youMsg = !win.card ? '' : ((win.seat===0)?'your '+cardName(win.card):'my partner\'s '+cardName(win.card));
   // map legal to cards with power
   var opts=legal.map(function(i){ return {i:i, c:h[i], pw:cardPower(h[i],t,led)}; });
+  G.why='';
   if(led==null){
     // leading: lead a strong trump early if we're maker, else lead off-ace, else lowest
     opts.sort(function(a,b){return b.pw-a.pw;});
     // prefer leading an off-suit ace (power 100+14) or right bower; avoid wasting
     var ace=opts.find(function(o){return o.c.r==='A' && effSuit(o.c,t)!==t;});
-    if(TEAM[p]===TEAM[G.maker] && opts[0].pw>=900) return opts[0].i; // lead bower to draw trump
-    if(ace) return ace.i;
+    if(TEAM[p]===TEAM[G.maker] && opts[0].pw>=900){ G.why='leading the '+(opts[0].pw>=1000?'right':'left')+' bower to pull their trump'; return opts[0].i; } // lead bower to draw trump
+    if(ace){ G.why='leading an off-suit ace — it usually wins'; return ace.i; }
     // lead middling
-    return opts[Math.floor(opts.length/2)].i;
+    G.why='nothing sure to win, so leading a middling card'; return opts[Math.floor(opts.length/2)].i;
   }
   // following
   var winners=opts.filter(function(o){return o.pw>win.power;});
-  if(partnerWinning && win.power>=500){
-    // partner has a strong trump/led winner — throw lowest
-    opts.sort(function(a,b){return a.pw-b.pw;});
-    return opts[0].i;
+  opts.sort(function(a,b){return a.pw-b.pw;});
+  if(partnerWinning){
+    // never trump or overtake a partner who already has the trick — unless the winner is a weak
+    // off-suit card (below Q) and an opponent still has to play behind us
+    var weak = win.power<100+RANK_VAL['Q'];
+    if(win.power>=500 || lastToPlay || !weak || !winners.length){
+      G.why=youMsg+' is winning — throwing my lowest';
+      return opts[0].i;
+    }
+    winners.sort(function(a,b){return a.pw-b.pw;});
+    G.why=youMsg+' might not hold against the next player — covering it'; return winners[0].i;
   }
   if(winners.length){
     // win as cheaply as possible
     winners.sort(function(a,b){return a.pw-b.pw;});
-    return winners[0].i;
+    var w=winners[0]; G.why=(effSuit(w.c,t)===t && led!==t)?'trumping in to take the trick':'taking the trick as cheaply as I can';
+    return w.i;
   }
   // can't win — throw lowest
-  opts.sort(function(a,b){return a.pw-b.pw;});
+  G.why='can\'t beat '+(win.seat>=0?cardName(win.card):'it')+' — throwing my lowest';
   return opts[0].i;
 }
+function cardName(c){ return c.r+SUIT_SYM[c.s]; }
 function currentTrickWinner(){
   var best={seat:-1,power:-1,card:null};
   for(var i=0;i<G.play.length;i++){
@@ -401,7 +435,37 @@ function startHand(){
   renderUpcard();
   toast(G.dealer===0?'You deal':SEATNAME[G.dealer]+' deals');
   G.bidRound=1; G.bidTurn=(G.dealer+1)%4; G.passes=0;
-  setTimeout(bidStep,700);
+  if(SET.farmer==='on') farmerCheck(function(){ setTimeout(bidStep,700); });
+  else setTimeout(bidStep,700);
+}
+/* ---- Farmer's hand: the first player (from the dealer's left) holding three 9s/10s may swap them for the three buried cards ---- */
+function farmerCards(hand){ var idx=[]; for(var i=0;i<hand.length;i++) if(hand[i].r==='9'||hand[i].r==='10') idx.push(i); return idx; }
+function farmerSwap(p){
+  var h=G.hands[p], idx=farmerCards(h);
+  idx.sort(function(a,b){ return RANK_VAL[h[a].r]-RANK_VAL[h[b].r]; }); idx=idx.slice(0,3).sort(function(a,b){ return b-a; });
+  var outCards=[]; idx.forEach(function(i){ outCards.push(h.splice(i,1)[0]); });
+  for(var k=0;k<3;k++) h.push(G.kitty[k]);
+  G.kitty=outCards; G.farmer=p;
+  if(p===0) sortHand(0);
+  renderAll();
+  bigToast((p===0?'You':SEATNAME[p])+' swapped three low cards — Farmer\'s hand');
+}
+function farmerCheck(done){
+  var order=[(G.dealer+1)%4,(G.dealer+2)%4,(G.dealer+3)%4,G.dealer];
+  for(var i=0;i<order.length;i++){
+    var p=order[i];
+    if(farmerCards(G.hands[p]).length<3) continue;
+    if(p===0){
+      var pr=el('prompt'); pr.style.display='block'; el('alone').style.display='none';
+      var q=el('promptQ'), b=el('promptBtns'); b.innerHTML='';
+      q.innerHTML='<span class="up">Farmer\'s hand!</span> You hold three 9s/10s — swap them for the three buried cards?';
+      addBtn(b,'Swap them','gold',function(){ hidePrompt(); farmerSwap(0); setTimeout(done,1200); });
+      addBtn(b,'Keep my hand','ghost',function(){ hidePrompt(); done(); });
+      return;
+    }
+    farmerSwap(p); setTimeout(done,1200); return;
+  }
+  done();
 }
 
 function bidStep(){
@@ -445,18 +509,48 @@ function commitCall(p, suit, alone, round1){
   var al = alone?' — going ALONE':'';
   toast(who+' called '+SUIT_NAME[suit]+al);
   sortHand(0);
+  G.out = alone ? [(p+2)%4] : [];
   renderAll();
-  // start play from left of dealer; if alone, partner of maker sits out
-  G.leader=(G.dealer+1)%4;
-  G.sitOut = alone ? (p+2)%4 : -1;
-  if(G.sitOut===G.leader) G.leader=(G.leader+1)%4;
-  setTimeout(startTrick,900);
+  var begin=function(){
+    // start play from left of dealer; sitting-out seats are skipped
+    G.leader=(G.dealer+1)%4;
+    while(isOut(G.leader)) G.leader=(G.leader+1)%4;
+    setTimeout(startTrick,900);
+  };
+  if(alone && SET.defend==='on') setTimeout(function(){ offerDefend(p, begin); }, 900);
+  else begin();
+}
+/* ---- Defend alone (Canadian loner): against a lone maker, one defender may go alone too ---- */
+function offerDefend(maker, done){
+  var order=[(G.dealer+1)%4,(G.dealer+2)%4,(G.dealer+3)%4,G.dealer].filter(function(x){ return TEAM[x]!==TEAM[maker]; });
+  var i=0;
+  function next(){
+    if(i>=order.length){ done(); return; }
+    var d=order[i++];
+    if(d===0){
+      var pr=el('prompt'); pr.style.display='block'; el('alone').style.display='none';
+      var q=el('promptQ'), b=el('promptBtns'); b.innerHTML='';
+      q.innerHTML=SEATNAME[maker]+' is going <span class="up">ALONE</span>. Defend alone? Your partner sits out — euchre them and it\'s worth <span class="up">4 points</span>.';
+      addBtn(b,'Defend alone','gold',function(){ hidePrompt(); defendAlone(0); done(); });
+      addBtn(b,'Play normally','ghost',function(){ hidePrompt(); next(); });
+      return;
+    }
+    if(handStrength(G.hands[d], G.trump, false)>=23){ defendAlone(d); setTimeout(done,900); return; }
+    next();
+  }
+  next();
+}
+function defendAlone(d){
+  G.defAlone=d; G.out.push((d+2)%4);
+  el('seat'+SEAT_TAG[d]).classList.add('loner'); el('seat'+SEAT_TAG[d]).querySelector('.callbadge').textContent='DEFENDING ALONE';
+  renderAll();
+  bigToast((d===0?'You defend':SEATNAME[d]+' defends')+' ALONE — a euchre is worth 4');
 }
 
 function startTrick(){
   G.play=[]; G.ledSuit=null; G.resolving=false;
   G.turn=G.leader;
-  if(G.turn===G.sitOut) G.turn=(G.turn+1)%4;
+  while(isOut(G.turn)) G.turn=(G.turn+1)%4;
   playStep();
 }
 function playStep(){
@@ -465,12 +559,14 @@ function playStep(){
   setActive(p);
   if(p===0){ humanPlay(); return; }
   setTimeout(function(){
+    if(G.turn!==p || G.resolving || !G.play || !G.hands[p].length) return;   // stale timer (seat already played / trick over)
     var idx=aiPlay(p);
     doPlay(p, idx);
+    if(p===2 && SET.tips==='on' && G.why && !isOut(0)) toast('Partner: '+G.why);
   }, 620);
 }
 function doPlay(p, idx){
-  if(G.resolving) return;                 // ignore stray inputs during resolution
+  if(G.resolving || !G.play) return;      // ignore stray inputs during resolution / before the first trick
   if(p!==G.turn) return;                   // only the active seat may play
   if(idx<0 || idx>=G.hands[p].length) return;
   var card=G.hands[p].splice(idx,1)[0];
@@ -478,18 +574,18 @@ function doPlay(p, idx){
   G.play.push({seat:p, card:card});
   renderPlayed();
   renderAll();
-  var activeCount = G.sitOut>=0?3:4;
-  if(G.play.length>=activeCount){
+  if(G.play.length>=activeCount()){
     G.resolving=true;
     setTimeout(finishTrick,850);
   } else {
     G.turn=nextSeat(p);
-    setTimeout(playStep,140);
+    var tok=(G.stepTok=(G.stepTok||0)+1);
+    setTimeout(function(){ if(G.stepTok===tok) playStep(); },140);
   }
 }
 function nextSeat(p){
   var n=(p+1)%4;
-  if(n===G.sitOut) n=(n+1)%4;
+  while(isOut(n)) n=(n+1)%4;
   return n;
 }
 function slideVec(seat){
@@ -499,8 +595,7 @@ function slideVec(seat){
   return {dx:300,dy:0};                  // East
 }
 function finishTrick(){
-  var activeCount = G.sitOut>=0?3:4;
-  if(!G.play || G.play.length<activeCount){ G.resolving=false; return; } // safety: not a full trick
+  if(!G.play || G.play.length<activeCount()){ G.resolving=false; return; } // safety: not a full trick
   var w=currentTrickWinner();
   if(w.seat<0){ G.resolving=false; return; }
   G.tricks[w.seat]++;
@@ -552,13 +647,15 @@ function scoreHand(){
       pts[makerTeam]=1; msg=(makerTeam===0?'You + Partner':'Opponents')+' made it — 1 point.';
     }
   } else {
-    pts[1-makerTeam]=2;
-    msg=(makerTeam===0?'You got EUCHRED!':'You EUCHRED them!')+' — 2 points to '+(1-makerTeam===0?'you':'opponents')+'.';
+    var ep=(G.defAlone>=0)?4:2;
+    pts[1-makerTeam]=ep;
+    msg=(makerTeam===0?'You got EUCHRED!':'You EUCHRED them!')+' — '+ep+' points to '+(1-makerTeam===0?'you':'opponents')+(ep===4?' (defended alone!)':'')+'.';
+    if(window.DJPP && G.defAlone===0 && makerTeam===1){ try{ DJPP.stat('loneDefences',1,'count'); }catch(e){} }
   }
   G.scores[0]+=pts[0]; G.scores[1]+=pts[1];
   el('scoreUs').textContent=G.scores[0];
   el('scoreThem').textContent=G.scores[1];
-  clearCaller();
+  clearCaller(); ['S','W','N','E'].forEach(function(tag){ var sEl=el('seat'+tag); sEl.classList.remove('loner'); sEl.querySelector('.callbadge').textContent='CALLED IT'; });
   bigToast(msg);
   setTimeout(function(){
     if(G.scores[0]>=10 || G.scores[1]>=10){ endGame(); return; }
@@ -591,7 +688,7 @@ function humanBid(){
     addBtn(b,'Order it up','gold',function(){ hidePrompt(); commitCall(0,G.up.s,el('aloneChk').checked,true); });
     addBtn(b,'Pass','ghost',function(){ hidePrompt(); toast('You pass'); advanceBid(); });
   } else {
-    q.innerHTML='Name trump'+(STICK_DEALER&&G.dealer===0?' (you\'re stuck — must call)':'')+':';
+    q.innerHTML='Name trump'+(stickDealer()&&G.dealer===0?' (you\'re stuck — must call)':'')+':';
     for(var i=0;i<SUITS.length;i++){
       (function(suit){
         if(suit===G.up.s) return;
@@ -602,7 +699,7 @@ function humanBid(){
         b.appendChild(btn);
       })(SUITS[i]);
     }
-    if(!(STICK_DEALER&&G.dealer===0)){
+    if(!(stickDealer()&&G.dealer===0)){
       addBtn(b,'Pass','ghost',function(){ hidePrompt(); toast('You pass'); advanceBid(); });
     }
   }
@@ -661,12 +758,9 @@ function renderTrickPips(){
 }
 function renderBacks(){
   function backs(id,n){ var s=''; for(var i=0;i<n;i++) s+='<div class="cardback"></div>'; el(id).innerHTML=s; }
-  backs('backsN', G.hands[2].length - (G.sitOut===2?0:0));
-  backs('backsW', G.hands[1].length);
-  backs('backsE', G.hands[3].length);
-  if(G.sitOut===2) el('backsN').innerHTML='';
-  if(G.sitOut===1) el('backsW').innerHTML='';
-  if(G.sitOut===3) el('backsE').innerHTML='';
+  backs('backsN', isOut(2)?0:G.hands[2].length);
+  backs('backsW', isOut(1)?0:G.hands[1].length);
+  backs('backsE', isOut(3)?0:G.hands[3].length);
 }
 function renderHand(interactive){
   var h=el('hand'); h.innerHTML='';
@@ -755,9 +849,16 @@ el('startbtn').addEventListener('click', function(){
   startHand();
 });
 
+// ---- options row ----
+function applySet(){ document.querySelectorAll('#optsRow .seg').forEach(function(seg){ var k=seg.getAttribute('data-key'); seg.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-v')===SET[k]); }); }); }
+document.querySelectorAll('#optsRow .seg button').forEach(function(b){ b.onclick=function(){ SET[b.parentNode.getAttribute('data-key')]=b.getAttribute('data-v'); saveSet(); applySet(); }; });
+applySet();
+
 // ---- test hook ----
 window.__EU={
-  get G(){return G;}, newGame:newGame, endGame:endGame,
+  get G(){return G;}, newGame:newGame, endGame:endGame, SET:SET, applySet:applySet, startHand:startHand, commitCall:commitCall,
+  aiPlay:aiPlay, doPlay:doPlay, farmerCards:farmerCards, farmerCheck:farmerCheck, offerDefend:offerDefend, isOut:isOut, activeCount:activeCount, scoreHand:scoreHand,
+  bidStep:bidStep, humanBid:humanBid, advanceBid:advanceBid, playStep:playStep, legalMoves:legalMoves, hidePrompt:hidePrompt,
   state:function(){return G;},
   auto:function(maxHands){ // play a full auto game (human seat also AI) for testing
     return autoGame(maxHands);
@@ -801,7 +902,7 @@ function simOneHand(dealer){
     for(var i2=0;i2<4;i2++){
       var p2=order[i2]; var best=null;
       for(var s2=0;s2<4;s2++){ if(SUITS[s2]===up.s) continue; var st=hStr(hands[p2],SUITS[s2]); if(!best||st>best.st) best={su:SUITS[s2],st:st}; }
-      var must=STICK_DEALER&&p2===dealer;
+      var must=stickDealer()&&p2===dealer;
       if(best.st>=17||must){ maker=p2; trump=best.su; alone=best.st>28; break; }
     }
   }
@@ -867,7 +968,8 @@ if('serviceWorker' in navigator){
 }
 window.DJPP_CONFIG={ game:'euchre', title:'Euchre', pkg:'com.djspuzzlepalace.euchre', team:true,
   extras:[ {key:'marches',label:'Marches (all 5 tricks)'}, {key:'lonersMade',label:'Loners made'},
-           {key:'euchresGiven',label:'Times you euchred them'}, {key:'euchresTaken',label:'Times you got euchred'} ] };
+           {key:'euchresGiven',label:'Times you euchred them'}, {key:'euchresTaken',label:'Times you got euchred'},
+           {key:'loneDefences',label:'Loners you euchred alone'} ] };
 </script>
 <script src="djpp-kit.js" defer></script>
 </body>
