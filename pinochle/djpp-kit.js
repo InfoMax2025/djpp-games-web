@@ -1,6 +1,6 @@
-/* DJ's Puzzle Palace — shared game kit v1.0
-   Adds to any DJPP card game: local stats, a rating prompt, the "Fair Deal" panel
-   and the "More games" panel. Configured by window.DJPP_CONFIG (set before this loads):
+/* DJ's Puzzle Palace — shared game kit v1.1
+   Adds to any DJPP card game: local stats, a rating prompt, the "Fair Deal" panel,
+   the "More games" panel and the shared Top 10 board (djpp-board.js, loaded by this file). Configured by window.DJPP_CONFIG (set before this loads):
      { game:'cribbage', title:'Cribbage', pkg:'com.djspuzzlepalace.cribbage',
        team:false,                       // true for partnership games (Euchre, Pinochle, Spades)
        target:'121 points',              // how a game is won (for the Fair Deal text)
@@ -52,6 +52,8 @@ var css = ''+
 '#djppResult{margin:2px 0 14px;font:700 17px/1.5 "Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--cream,#faf6ea);'+
 '  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:10px 18px;max-width:560px;}'+
 '#djppResult .hi{color:var(--gold,#f6c945);}'+
+'#djppResult .bd{margin-top:6px;font-size:15px;opacity:.9;}'+
+'#djppResult .bd.link{cursor:pointer;text-decoration:underline;text-decoration-color:rgba(246,201,69,.6);}'+
 '#djppPanel{position:fixed;inset:0;z-index:2000;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;'+
 '  padding:24px 16px 32px;overflow-y:auto;text-align:center;color:var(--cream,#faf6ea);'+
 '  font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:radial-gradient(ellipse at 50% 30%,rgba(8,52,27,.985),rgba(3,20,10,.995));}'+
@@ -174,9 +176,28 @@ function maybeAskRating(won){
   return true;
 }
 
+/* ---------- shared Top 10 board (djpp-board.js) ---------- */
+var boardP=null;
+function loadBoard(){
+  if(window.DJPPBoard) return Promise.resolve();
+  if(boardP) return boardP;
+  boardP=new Promise(function(res, rej){
+    var s=document.createElement('script'); s.src='djpp-board.js'; s.async=true;
+    s.onload=function(){ res(); }; s.onerror=function(){ boardP=null; rej(new Error('djpp-board.js failed to load')); };
+    document.head.appendChild(s);
+  });
+  return boardP;
+}
+function showBoard(){
+  loadBoard().then(function(){ if(window.DJPPBoard) DJPPBoard.open(); }, function(){
+    openPanel("DJ'S PUZZLE PALACE · "+TITLE.toUpperCase(), 'Top 10', box('<div>The shared board could not load just now. Please check your connection and try again.</div>'), []);
+  });
+}
+function boardJoined(){ return !!(window.DJPPBoard && DJPPBoard.joined()); }
+
 /* ---------- public API ---------- */
 var DJPP = {
-  version:'1.0',
+  version:'1.1',
   stats:function(){ return S; },
   stat:function(key, value, mode){
     mode=mode||'max'; var cur=S.extras[key];
@@ -207,11 +228,25 @@ var DJPP = {
       if(newMargin && margin>0 && S.games>1) line+='<br><span class="hi">Biggest win yet: +'+margin+'</span>';
       d.innerHTML=line;
       host.parentNode.insertBefore(d, host.nextSibling);
+      if(boardJoined()){
+        var tag=document.createElement('div'); tag.className='bd'; tag.textContent='Top 10 board: sending your result…'; d.appendChild(tag);
+        DJPPBoard.record({won:won}).then(function(info){
+          if(!tag.parentNode) return;
+          if(info && info.total) tag.innerHTML='Top 10 board: you’re <span class="hi">#'+info.rank+' of '+info.total+'</span> this week';
+          else if(DJPPBoard.joined() && DJPPBoard._state().pending.length) tag.textContent='Top 10 board: saved here — it goes up when you’re back online';
+          else tag.textContent=DJPPBoard.joined()?'Top 10 board: result saved':'Top 10 board: you’re no longer on it';
+        });
+      } else if(S.games>=3 && S.games%4===3){
+        var nudge=document.createElement('div'); nudge.className='bd link'; nudge.textContent='Compete with other players — join the Top 10 board';
+        nudge.onclick=function(){ showBoard(); }; d.appendChild(nudge);
+      }
+    } else if(boardJoined()){
+      DJPPBoard.record({won:won});
     }
     maybeAskRating(won);
     return {won:won, streak:S.streak, newBest:newBest, newMargin:newMargin};
   },
-  showStats:showStats, showFair:showFair, showMore:showMore, openPlay:openPlay,
+  showStats:showStats, showFair:showFair, showMore:showMore, showBoard:showBoard, openPlay:openPlay,
   reset:function(){ S=freshStats(); save('stats',S); R={done:false,lastAsk:0,asks:0}; save('rate',R); }
 };
 window.DJPP=DJPP;
@@ -221,7 +256,7 @@ function mount(){
   var start=document.getElementById('startbtn');
   if(!start || document.getElementById('djppMenu')) return;
   var m=document.createElement('div'); m.id='djppMenu';
-  [['My Stats',showStats],['Fair Deal',showFair],['More Games',showMore]].forEach(function(x){
+  [['My Stats',showStats],['Top 10',showBoard],['Fair Deal',showFair],['More Games',showMore]].forEach(function(x){
     var b=document.createElement('button'); b.className='djpp-btn'; b.textContent=x[0]; b.onclick=function(e){ e.preventDefault(); x[1](); }; m.appendChild(b);
   });
   start.parentNode.insertBefore(m, start.nextSibling);
@@ -229,4 +264,5 @@ function mount(){
   start.addEventListener('click', function(){ var d=document.getElementById('djppResult'); if(d) d.remove(); });
 }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', mount); else mount();
+loadBoard().catch(function(){});
 })();
