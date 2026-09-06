@@ -1,4 +1,4 @@
-var CACHE='tc3d-v1-31';
+var CACHE='tc3d-v1-32';
 var ASSETS=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./icon-maskable-512.png','./apple-touch-icon.png','./favicon.png','./djpp-board.js'];
 self.addEventListener('install',function(e){self.skipWaiting();
   e.waitUntil(caches.open(CACHE).then(function(c){
@@ -14,6 +14,8 @@ self.addEventListener('fetch',function(e){
   /* never intercept the worker itself - a cached sw.js can never be replaced */
   if(url.pathname==='/sw.js')return;
   if((req.mode==='navigate')||(req.destination==='document')){
+    /* other pages (privacy.html) go straight to the network and are never cached as the app */
+    if(url.pathname!=='/'&&url.pathname!=='/index.html')return;
     /* network-first for the page so a new deploy lands on the next load */
     e.respondWith(fetch(req).then(function(resp){
       var cp=resp.clone();caches.open(CACHE).then(function(c){c.put('./index.html',cp);});return resp;})
