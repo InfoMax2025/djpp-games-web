@@ -1,0 +1,52 @@
+# Live Cams: World Webcams - hourly dead-cam check.
+#
+# Tests every cam the app is showing (it reads the catalogue from the live site)
+# and saves the result as status.json on the `livecams-data` branch. The app reads
+# that file and hides cams that are not working. Nothing else in this repository
+# is read or changed.
+#
+# Optional repository secret YT_API_KEY (YouTube Data API v3) makes the check exact
+# and lets it find a channel's new stream after a restart.
+name: livecams-sweep
+on:
+  schedule:
+    - cron: "17 * * * *"      # hourly, at 17 minutes past
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: livecams-sweep
+  cancel-in-progress: false
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: livecams-data
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Test every cam
+        id: test
+        env:
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}
+        # Exit code 2 means the check itself could not run properly (for example the
+        # catalogue or YouTube could not be reached). The old result is kept and the
+        # app stops trusting it after six hours, so this is logged, not failed.
+        run: |
+          set +e
+          node sweep.mjs https://livecamsapp.netlify.app/data/cams.json status.json
+          code=$?
+          if [ "$code" = "2" ]; then echo "::warning::Sweep could not run properly; status.json left unchanged."; exit 0; fi
+          exit $code
+      - name: Save the result
+        # One commit, replaced each hour, so the branch never grows.
+        run: |
+          git config user.name "livecams-sweep"
+          git config user.email "livecams-sweep@users.noreply.github.com"
+          git add status.json
+          if git diff --cached --quiet; then echo "No change."; exit 0; fi
+          git commit --amend -m "Live Cams: cam status (updated hourly by the livecams-sweep workflow)"
+          git push --force origin HEAD:livecams-data
