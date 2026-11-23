@@ -1,0 +1,431 @@
+{
+ "checked": "2026-11-28T11:53:12.374Z",
+ "mode": "oembed",
+ "total": 139,
+ "video": 118,
+ "stills": 21,
+ "failing": 1,
+ "untested": 0,
+ "hidden": 1,
+ "cams": {
+  "lax-north": {
+   "ok": true
+  },
+  "lax-south": {
+   "ok": true
+  },
+  "lhr-bigjet": {
+   "ok": true
+  },
+  "lhr-myrtle": {
+   "ok": true
+  },
+  "las-runways": {
+   "ok": true
+  },
+  "las-official": {
+   "ok": true
+  },
+  "lga": {
+   "ok": true
+  },
+  "msy": {
+   "ok": true
+  },
+  "sxm-fr24": {
+   "ok": true
+  },
+  "sxm-showme": {
+   "ok": true
+  },
+  "ace": {
+   "ok": true
+  },
+  "rno": {
+   "ok": true
+  },
+  "mke": {
+   "ok": true
+  },
+  "mia-927": {
+   "ok": true
+  },
+  "mia-hotel": {
+   "ok": true
+  },
+  "mdw": {
+   "ok": true
+  },
+  "lhd": {
+   "ok": true
+  },
+  "sfo": {
+   "ok": true
+  },
+  "sea": {
+   "ok": true
+  },
+  "msp": {
+   "ok": true
+  },
+  "hnd-t2": {
+   "ok": true
+  },
+  "hnd-t1": {
+   "ok": true
+  },
+  "itm": {
+   "ok": true
+  },
+  "fuk": {
+   "ok": true
+  },
+  "tpe": {
+   "ok": true
+  },
+  "gru": {
+   "ok": true
+  },
+  "prg": {
+   "ok": true
+  },
+  "bgi": {
+   "ok": true
+  },
+  "hollywood-fl": {
+   "ok": true
+  },
+  "deerfield-beach": {
+   "ok": true
+  },
+  "deerfield-pier": {
+   "ok": true
+  },
+  "huntington-pier": {
+   "ok": true
+  },
+  "pacifica-pier": {
+   "ok": true
+  },
+  "jax-beach": {
+   "ok": true
+  },
+  "key-west-buoy": {
+   "ok": true
+  },
+  "manhattan-beach": {
+   "ok": true
+  },
+  "santa-monica": {
+   "ok": true
+  },
+  "destin": {
+   "ok": true
+  },
+  "mambo-beach": {
+   "ok": true
+  },
+  "st-john-usvi": {
+   "ok": true
+  },
+  "myrtle-beach": {
+   "ok": true
+  },
+  "monterey-bay": {
+   "ok": true
+  },
+  "kilauea-park": {
+   "ok": true
+  },
+  "brooks-falls": {
+   "ok": true
+  },
+  "katmai-riffles": {
+   "ok": true
+  },
+  "etosha": {
+   "ok": true
+  },
+  "namib": {
+   "ok": true
+  },
+  "big-bear-eagles": {
+   "ok": true
+  },
+  "cornell-feeder": {
+   "ok": true
+  },
+  "panama-feeder": {
+   "ok": true
+  },
+  "monterey-jellies": {
+   "ok": true
+  },
+  "monterey-kelp": {
+   "ok": true
+  },
+  "vancouver-otters": {
+   "ok": true
+  },
+  "moody-penguins": {
+   "ok": true
+  },
+  "ol-donyo": {
+   "ok": true
+  },
+  "mara": {
+   "ok": true
+  },
+  "tropical-reef": {
+   "ok": true
+  },
+  "utila-reef": {
+   "ok": true
+  },
+  "coral-city": {
+   "ok": true
+  },
+  "pacific-flyway": {
+   "ok": true
+  },
+  "wolves": {
+   "ok": true
+  },
+  "gettysburg-feeder": {
+   "ok": true
+  },
+  "new-orleans": {
+   "ok": true
+  },
+  "dublin": {
+   "ok": true
+  },
+  "times-square": {
+   "ok": true
+  },
+  "abbey-road": {
+   "ok": true
+  },
+  "shibuya": {
+   "ok": true
+  },
+  "kabukicho": {
+   "ok": true
+  },
+  "tokyo-bay": {
+   "ok": true
+  },
+  "bryant-park": {
+   "ok": true
+  },
+  "venice-guglie": {
+   "ok": true
+  },
+  "venice-grand-canal": {
+   "ok": true
+  },
+  "notting-hill": {
+   "ok": true
+  },
+  "toronto": {
+   "ok": true
+  },
+  "vancouver": {
+   "ok": true
+  },
+  "bay-bridge": {
+   "ok": true
+  },
+  "leavenworth": {
+   "ok": true
+  },
+  "jackson-square": {
+   "ok": false,
+   "fails": 3,
+   "why": "gone-or-embed-off"
+  },
+  "handelskade": {
+   "ok": true
+  },
+  "mackinac-bridge": {
+   "ok": true
+  },
+  "duluth-canal": {
+   "ok": true
+  },
+  "soo-locks": {
+   "ok": true
+  },
+  "levi": {
+   "ok": true
+  },
+  "mammoth": {
+   "ok": true
+  },
+  "palisades": {
+   "ok": true
+  },
+  "big-sky": {
+   "ok": true
+  },
+  "bachelor": {
+   "ok": true
+  },
+  "dodge-ridge": {
+   "ok": true
+  },
+  "targhee": {
+   "ok": true
+  },
+  "grimentz": {
+   "ok": true
+  },
+  "saalbach": {
+   "ok": true
+  },
+  "kilauea-west": {
+   "ok": true
+  },
+  "kilauea-east": {
+   "ok": true
+  },
+  "sakurajima": {
+   "ok": true
+  },
+  "fuego": {
+   "ok": true
+  },
+  "mayon": {
+   "ok": true
+  },
+  "iss-hd": {
+   "ok": true
+  },
+  "iss-live": {
+   "ok": true
+  },
+  "sen-earth": {
+   "ok": true
+  },
+  "starbase": {
+   "ok": true
+  },
+  "space-coast": {
+   "ok": true
+  },
+  "launch-pad-live": {
+   "ok": true
+  },
+  "mcgregor": {
+   "ok": true
+  },
+  "fairbanks-aurora": {
+   "ok": true
+  },
+  "levi-aurora": {
+   "ok": true
+  },
+  "orange-falcons": {
+   "ok": true
+  },
+  "sydney-sea-eagles": {
+   "ok": true
+  },
+  "melbourne": {
+   "ok": true
+  },
+  "venice-beach": {
+   "ok": true
+  },
+  "samui-lamai": {
+   "ok": true
+  },
+  "koh-phangan": {
+   "ok": true
+  },
+  "cowes": {
+   "ok": true
+  },
+  "london-bridge": {
+   "ok": true
+  },
+  "helsinki-port": {
+   "ok": true
+  },
+  "canmore": {
+   "ok": true
+  },
+  "seaside-heights": {
+   "ok": true
+  },
+  "nyc-harbor": {
+   "ok": true
+  },
+  "orange-beach": {
+   "ok": true
+  },
+  "nps-grand-canyon": {
+   "ok": true
+  },
+  "nps-yosemite": {
+   "ok": true
+  },
+  "nps-rainier-paradise": {
+   "ok": true
+  },
+  "nps-grand-teton": {
+   "ok": true
+  },
+  "nps-bryce": {
+   "ok": true
+  },
+  "nps-olympic-lake-crescent": {
+   "ok": true
+  },
+  "nps-north-cascades": {
+   "ok": true
+  },
+  "nps-point-reyes": {
+   "ok": true
+  },
+  "nps-sequoia": {
+   "ok": true
+  },
+  "nps-joshua-tree": {
+   "ok": true
+  },
+  "nps-big-bend": {
+   "ok": true
+  },
+  "nps-theodore-roosevelt": {
+   "ok": true
+  },
+  "nps-dinosaur": {
+   "ok": true
+  },
+  "nps-smokies-kuwohi": {
+   "ok": true
+  },
+  "nps-smokies-look-rock": {
+   "ok": true
+  },
+  "nps-smokies-purchase-knob": {
+   "ok": true
+  },
+  "nps-shenandoah": {
+   "ok": true
+  },
+  "nps-acadia": {
+   "ok": true
+  },
+  "nps-mammoth-cave": {
+   "ok": true
+  },
+  "nps-halemaumau": {
+   "ok": true
+  },
+  "nps-national-mall": {
+   "ok": true
+  }
+ }
+}
